@@ -1,0 +1,3 @@
+* replace pinentry's code with our own talker to gpg-agent
+* look over code and see what I broke while copypasting code from dmenu
+* get licenses in order
