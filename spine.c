@@ -50,6 +50,8 @@ static int sw, sh;
 
 static int timed_out;
 
+pinentry_t pinentry;
+
 #include "config.h"
 
 void
@@ -94,15 +96,15 @@ drawwin(void){
 	drw_setscheme(drw, &scheme[SchemeNorm]);
 	drw_rect(drw, 0,0,mw,mh,True,1,1);
 
-	if (description && *description) {
+	if ((pinentry->description) && *(pinentry->description)) {
 		drw_setscheme(drw, &scheme[SchemeSel]);
-		drw_text(drw, 0,0,mw,bh,description,0);
+		drw_text(drw, 0,0,mw,bh,pinentry->description,0);
 		y+=bh;
 	}
 	
-	if (prompt && *prompt) {
+	if ((pinentry->prompt) && *(pinentry->prompt)) {
 		drw_setscheme(drw, &scheme[SchemeSel]);
-		drw_text(drw, x, y, promptw, bh, prompt, 0);
+		drw_text(drw, x, y, promptw, bh, pinentry->prompt, 0);
 		x += promptw;
 	}
 	
@@ -142,11 +144,11 @@ setup(void){
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 	bh = drw->fonts[0]->h + 2;
-	mh = (description && *description)? bh * 2 : bh;
+	mh = (pinentry->description && *(pinentry->description))? bh * 2 : bh;
 	x = 0;
 	y = topbar ? 0 : sh - mh;
 	mw = sw;
-	promptw = (prompt && *prompt) ? TEXTW(prompt) : 0;
+	promptw = (pinentry->prompt && *(pinentry->prompt)) ? TEXTW(pinentry->prompt) : 0;
 	inputw = mw-promptw;
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemeNorm].bg->pix;
@@ -268,7 +270,7 @@ run(void) {
 }
 
 void
-promptwin(pinentry_t pinentry) {
+promptwin(void) {
 	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		fputs("warning: no locale support\n", stderr);
 	if(!(dpy = XOpenDisplay(pinentry->display))) /*NULL was here*/
@@ -296,8 +298,8 @@ catchsig(int sig)
 }
 
 int
-password (pinentry_t pinentry) {
-	promptwin(pinentry);
+password (void) {
+	promptwin();
 	char *buf = secmem_malloc(strlen(text));
 	strcpy(buf, text);
 	pinentry_setbuffer_use (pinentry, buf, 0);
@@ -305,12 +307,13 @@ password (pinentry_t pinentry) {
 }
 
 int
-confirm(pinentry_t pinentry) {
+confirm(void) {
 	return 1;
 }
 
 int
-spinecmdhandler (pinentry_t pinentry) {
+spinecmdhandler (pinentry_t recieved_pinentry) {
+	pinentry = recieved_pinentry;
 	if (pinentry->timeout){
 		struct sigaction sa;
 
@@ -320,9 +323,9 @@ spinecmdhandler (pinentry_t pinentry) {
 		alarm(pinentry->timeout);
 	}
 	if (pinentry->pin)
-		return password(pinentry);
+		return password();
 	else
-		return confirm(pinentry);
+		return confirm();
 
 	return -1;
 }
