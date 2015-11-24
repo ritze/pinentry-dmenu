@@ -297,7 +297,7 @@ catchsig(int sig)
     timed_out = 1;
 }
 
-int
+static int
 password (void) {
 	promptwin();
 	char *buf = secmem_malloc(strlen(text));
@@ -306,7 +306,7 @@ password (void) {
 	return 1;
 }
 
-int
+static int
 confirm(void) {
 	return 1;
 }

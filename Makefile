@@ -24,12 +24,16 @@ config.h:
 
 ${OBJ}: config.h config.mk drw.h
 
-spine: spine.o drw.o util.o
+pinentry:
+	$(MAKE) -C pinentry
+
+spine: pinentry spine.o drw.o util.o
 	@echo CC -o $@
 	@${CC} -o $@ spine.o drw.o util.o pinentry/pinentry.o pinentry/util.o pinentry/password-cache.o pinentry/argparse.o pinentry/secmem.o ${LDFLAGS} -lassuan -lgpgme -lgpg-error
 
 clean:
 	@echo cleaning
 	@rm -f spine ${OBJ}
+	$(MAKE) -C pinentry/ clean
 
-.PHONY: all options clean
+.PHONY: all options clean pinentry
