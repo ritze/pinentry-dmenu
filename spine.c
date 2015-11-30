@@ -31,6 +31,8 @@ const char *str_ERRNOTIMP = "ERR4100 not implemented yet\n";
 
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeLast }; /* color schemes */
+enum {WinPin, WinConfirm}; /* window modes */
+enum {Ok, NotOk, Cancel}; /* return status */
 
 static char text[2048] = "";
 static int bh, mw, mh;
@@ -49,6 +51,9 @@ static Drw *drw;
 static int sw, sh;
 
 static int timed_out;
+
+static int confirmed;
+static int winmode;
 
 pinentry_t pinentry;
 
@@ -123,10 +128,13 @@ drawwin(void){
 			seccursor = n;
 		}
 	}
-
-	drw_text(drw, x, y, mw, bh, sectext, 0);
-	if((curpos = TEXTNW(sectext, seccursor) + bh/2 - 2) < w) {
-		drw_rect(drw, x + curpos + 2, y + 2,  1 , bh-4 , True, 1, 0);
+	if (winmode==WinPin) {
+		drw_text(drw, x, y, mw, bh, sectext, 0);
+		if((curpos = TEXTNW(sectext, seccursor) + bh/2 - 2) < w) {
+			drw_rect(drw, x + curpos + 2, y + 2,  1 , bh-4 , True, 1, 0);
+		}
+	} else {
+		drw_text(drw, x, y, mw, bh, "(y/n)", 0);
 	}
 
 	drw_map(drw, win, 0, 0, mw, mh);
@@ -190,39 +198,61 @@ keypress(XKeyEvent *ev) {
 	len = XmbLookupString(xic, ev, buf, sizeof buf, &ksym, &status);
 	if (status == XBufferOverflow)
 		return 0;
-	switch(ksym){
-	default:
-		if (!iscntrl(*buf))
-			insert(buf, len);
-		break;
-	case XK_Delete:
-		if(text[cursor] == '\0')
-			return 0;
-		cursor = nextrune(cursor, +1);
-		/* fallthrough */
-	case XK_BackSpace:
-		if(cursor == 0)
-			return 0;
-		insert(NULL, nextrune(cursor, -1) - cursor);
-		break;
-	case XK_Escape:
-		cleanup();
-		exit(1);
-		break;
-	case XK_Left:
-		if(cursor > 0) {
-			cursor = nextrune(cursor, -1);
+	if (winmode == WinConfirm){
+		switch(ksym){
+		case XK_KP_Enter:
+		case XK_Return:
+		case XK_y:
+			confirmed = 1;
+			return 1;
+			break;
+		case XK_n:
+			confirmed = 0;
+			return 1;
+			break;
+		case XK_Escape:
+			pinentry->canceled = 1;
+			confirmed = 0;
+			return 1;
+			break;
 		}
-		break;
-	case XK_Right:
-		if(text[cursor]!='\0') {
+	} else {
+		switch(ksym){
+		default:
+			if (!iscntrl(*buf))
+				insert(buf, len);
+			break;
+		case XK_Delete:
+			if(text[cursor] == '\0')
+				return 0;
 			cursor = nextrune(cursor, +1);
+			/* fallthrough */
+		case XK_BackSpace:
+			if(cursor == 0)
+				return 0;
+			insert(NULL, nextrune(cursor, -1) - cursor);
+			break;
+		case XK_Escape:
+			pinentry->canceled = 1;
+			return 1;
+			/*cleanup();
+			exit(1);*/
+			break;
+		case XK_Left:
+			if(cursor > 0) {
+				cursor = nextrune(cursor, -1);
+			}
+			break;
+		case XK_Right:
+			if(text[cursor]!='\0') {
+				cursor = nextrune(cursor, +1);
+			}
+			break;
+		case XK_Return:
+		case XK_KP_Enter:
+			return 1;
+			break;
 		}
-		break;
-	case XK_Return:
-	case XK_KP_Enter:
-		return 1;
-		break;
 	}
 	drawwin();
 	return 0;
@@ -293,13 +323,15 @@ promptwin(void) {
 static void
 catchsig(int sig)
 {
-  if (sig == SIGALRM)
-    timed_out = 1;
+	if (sig == SIGALRM)
+		timed_out = 1;
 }
 
 static int
 password (void) {
+	winmode = WinPin;
 	promptwin();
+	if (pinentry->canceled) return -1;
 	char *buf = secmem_malloc(strlen(text));
 	strcpy(buf, text);
 	pinentry_setbuffer_use (pinentry, buf, 0);
@@ -308,7 +340,10 @@ password (void) {
 
 static int
 confirm(void) {
-	return 1;
+	winmode = WinConfirm;
+	confirmed = 0;
+	promptwin();
+	return confirmed;
 }
 
 int
