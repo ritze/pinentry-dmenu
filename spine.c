@@ -189,7 +189,7 @@ cleanup(void) {
 }
 
 
-int
+static int
 keypress(XKeyEvent *ev) {
 	char buf[32];
 	int len;
@@ -301,19 +301,6 @@ run(void) {
 
 void
 promptwin(void) {
-	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
-		fputs("warning: no locale support\n", stderr);
-	if(!(dpy = XOpenDisplay(pinentry->display))) /*NULL was here*/
-		die("dmenu: cannot open display\n");
-	screen = DefaultScreen(dpy);
-	root = RootWindow(dpy, screen);
-	sw = DisplayWidth(dpy, screen);
-	sh = DisplayHeight(dpy, screen);
-	drw = drw_create(dpy, screen, root, sw, sh);
-	drw_load_fonts(drw, fonts, LENGTH(fonts));
-	if(!drw->fontcount)
-		die("No fonts could be loaded.\n");
-	drw_setscheme(drw, &scheme[SchemeNorm]);
 	grabkeyboard();
 	setup();
 	run();
@@ -346,12 +333,26 @@ confirm(void) {
 	return confirmed;
 }
 
-int
+static int
 spinecmdhandler (pinentry_t recieved_pinentry) {
 	pinentry = recieved_pinentry;
+
+	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
+		fputs("warning: no locale support\n", stderr);
+	if(!(dpy = XOpenDisplay(pinentry->display))) /*NULL was here*/
+		die("dmenu: cannot open display\n");
+	screen = DefaultScreen(dpy);
+	root = RootWindow(dpy, screen);
+	sw = DisplayWidth(dpy, screen);
+	sh = DisplayHeight(dpy, screen);
+	drw = drw_create(dpy, screen, root, sw, sh);
+	drw_load_fonts(drw, fonts, LENGTH(fonts));
+	if(!drw->fontcount)
+		die("No fonts could be loaded.\n");
+	drw_setscheme(drw, &scheme[SchemeNorm]);
+
 	if (pinentry->timeout){
 		struct sigaction sa;
-
 		memset(&sa, 0, sizeof(sa));
 		sa.sa_handler = catchsig;
 		sigaction(SIGALRM, &sa, NULL);
@@ -361,7 +362,6 @@ spinecmdhandler (pinentry_t recieved_pinentry) {
 		return password();
 	else
 		return confirm();
-
 	return -1;
 }
 
@@ -369,6 +369,7 @@ pinentry_cmd_handler_t pinentry_cmd_handler = spinecmdhandler;
 
 int
 main(int argc, char *argv[]){
+
 	pinentry_init("spine");
 	pinentry_parse_opts(argc, argv);
 	if (pinentry_loop())

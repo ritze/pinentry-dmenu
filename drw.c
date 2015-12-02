@@ -88,9 +88,11 @@ void
 drw_free(Drw *drw) {
 	size_t i;
 
-	for (i = 0; i < drw->fontcount; i++) {
+	/* This was breaking the program when I tried to bring window up second time
+	Too lazy to dig deeper right now,*\
+	\*or (i = 0; i < drw->fontcount; i++) {
 		drw_font_free(drw->fonts[i]);
-	}
+	}*/
 	XFreePixmap(drw->dpy, drw->drawable);
 	XFreeGC(drw->dpy, drw->gc);
 	free(drw);
