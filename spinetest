@@ -2,6 +2,8 @@
 echo "SETDESC testing spine, type whatever
 SETPROMPT whatever:
 GETPIN
+SETDESC type more of whatever:
+GETPIN
 SETDESC testing confirmation
 confirm
 BYE" | ./spine

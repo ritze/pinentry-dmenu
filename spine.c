@@ -336,6 +336,7 @@ confirm(void) {
 static int
 spinecmdhandler (pinentry_t recieved_pinentry) {
 	text[0]='\0';
+	cursor = 0;
 	pinentry = recieved_pinentry;
 
 	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
@@ -369,8 +370,7 @@ spinecmdhandler (pinentry_t recieved_pinentry) {
 pinentry_cmd_handler_t pinentry_cmd_handler = spinecmdhandler;
 
 int
-main(int argc, char *argv[]){
-
+main(int argc, char *argv[]) {
 	pinentry_init("spine");
 	pinentry_parse_opts(argc, argv);
 	if (pinentry_loop())
