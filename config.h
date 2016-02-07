@@ -1,7 +1,7 @@
 /* See LICENSE file for copyright and license details. */
 static Bool topbar = True;
 static const char *fonts[]={
-	"monospace:size=8"
+	"Dejavu Sans Mono:size=10"
 };
 static char *secchar = "*";
 /*static char *description = NULL;

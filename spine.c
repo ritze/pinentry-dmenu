@@ -335,6 +335,7 @@ confirm(void) {
 
 static int
 spinecmdhandler (pinentry_t recieved_pinentry) {
+	text[0]='\0';
 	pinentry = recieved_pinentry;
 
 	if(!setlocale(LC_CTYPE, "") || !XSupportsLocale())
