@@ -10,6 +10,9 @@
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
+#ifdef XINERAMA
+#include <X11/extensions/Xinerama.h>
+#endif
 #include <X11/Xft/Xft.h>
 
 #include "drw.h"
@@ -42,14 +45,13 @@ static size_t cursor = 0;
 static Atom clip, utf8;
 static Window win;
 static XIC xic;
-static int mon = -1;
+static int mon = 0;
 
 static ClrScheme scheme[SchemeLast];
 static Display *dpy;
 static int screen;
 static Window root;
 static Drw *drw;
-static int sw, sh;
 
 static int timed_out;
 
@@ -105,7 +107,7 @@ insert(const char *str, ssize_t n) {
 void
 drawwin(void) {
 	int curpos;
-	int x = 0, y = 0, bh, w;
+	int x = 0, y = 0, w;
 	char *sectext;
 	int i;
 	int seccursor = 0;
@@ -119,21 +121,22 @@ drawwin(void) {
 		drw_text(drw, 0, 0, mw, bh, pinentry->description, 0);
 		y += bh;
 	}
-	
+
 	if ((pinentry->prompt) && *(pinentry->prompt)) {
 		drw_setscheme(drw, &scheme[SchemeSel]);
 		drw_text(drw, x, y, promptw, bh, pinentry->prompt, 0);
 		x += promptw;
 	}
-	
+
 	w = inputw;
 	drw_setscheme(drw, &scheme[SchemeNorm]);
-	
+
 	sectext = malloc (sizeof (char) * 2048);
 	sectext[0] = '\0';
 
-	for (i=0; text[i]!='\0'; i=nextrune(i, +1)) {
+	for (i=0; text[i] != '\0'; i = nextrune(i, +1)) {
 		strcat(sectext, secstring);
+
 		if (i < cursor) {
 			for (n = seccursor + 1; n + 1 >= 0 && (sectext[n] & 0xc0) == 0x80;
 			     n ++);
@@ -156,7 +159,15 @@ drawwin(void) {
 
 void
 setup(void){
-	int x,y;
+	int x, y;
+	Window pw;
+	XWindowAttributes wa;
+#ifdef XINERAMA
+	unsigned int du;
+	int a, i, di, n, j, area = 0;
+	Window w, dw, *dws;
+	XineramaScreenInfo *info;
+#endif
 	XSetWindowAttributes swa;
 	XIM xim;
 	scheme[SchemeNorm].bg = drw_clr_create(drw, normbgcolor);
@@ -166,11 +177,61 @@ setup(void){
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 	bh = drw->fonts[0]->h + 2;
-	mh = (pinentry->description && *(pinentry->description))? bh * 2 : bh;
-	x = 0;
-	y = topbar ? 0 : sh - mh;
-	mw = sw;
-	promptw = (pinentry->prompt && *(pinentry->prompt)) ? TEXTW(pinentry->prompt) : 0;
+	mh = bh;
+#ifdef XINERAMA
+	info = XineramaQueryScreens(dpy, &n);
+	
+	if (info) {
+		XGetInputFocus(dpy, &w, &di);
+		if (mon >= 0 && mon < n) {
+			i = mon;
+		} else if (w != root && w != PointerRoot && w != None) {
+			/* find top-level window containing current input focus */
+			do {
+				if (XQueryTree(dpy, (pw = w), &dw, &w, &dws, &du) && dws) {
+					XFree(dws);
+				}
+			} while (w != root && w != pw);
+			/* find xinerama screen with which the window intersects most */
+			if (XGetWindowAttributes(dpy, pw, &wa)) {
+				for (j = 0; j < n; j++) {
+					a = INTERSECT(wa.x, wa.y, wa.width, wa.height, info[j]);
+					if (a > area) { 
+						area = a;
+						i = j;
+					}
+				}
+			}
+		}
+		/* no focused window is on screen, so use pointer location instead */
+		if (mon < 0 && !area
+		    && XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du)) {
+			for (i = 0; i < n; i++) {
+				if (INTERSECT(x, y, 1, 1, info[i])) {
+					break;
+				}
+			}
+		}
+		x = info[i].x_org;
+		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
+		mw = info[i].width;
+		XFree(info);
+	} else
+#endif
+	{
+		if (!XGetWindowAttributes(dpy, root, &wa)) {
+			die("could not get embedding window attributes: 0x%lx", root);
+		}
+		x = 0;
+		y = topbar ? 0 : wa.height - mh;
+		mw = wa.width;
+	}
+	/* FIXME */
+	if (pinentry->prompt && *(pinentry->prompt)) {
+		promptw = TEXTW(pinentry->prompt);
+	} else {
+		promptw = 0;
+	}
 	inputw = mw-promptw;
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemeNorm].bg->pix;
@@ -370,6 +431,7 @@ confirm(void) {
 static int
 cmdhandler (pinentry_t recieved_pinentry) {
 	struct sigaction sa;
+	XWindowAttributes wa;
 	
 	text[0]='\0';
 	cursor = 0;
@@ -383,9 +445,10 @@ cmdhandler (pinentry_t recieved_pinentry) {
 	}
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	sw = DisplayWidth(dpy, screen);
-	sh = DisplayHeight(dpy, screen);
-	drw = drw_create(dpy, screen, root, sw, sh);
+	if (!XGetWindowAttributes(dpy, root, &wa)) {
+		die("could not get embedding window attributes: 0x%lx", root);
+	}
+	drw = drw_create(dpy, screen, root, wa.width, wa.height);
 	drw_load_fonts(drw, fonts, LENGTH(fonts));
 	if (!drw->fontcount) {
 		die("No fonts could be loaded.\n");
