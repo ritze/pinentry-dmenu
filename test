@@ -1,9 +1,9 @@
 #!/bin/sh
-echo "SETDESC testing spine, type whatever
+echo "SETDESC testing pinentry-dmenu, type whatever
 SETPROMPT whatever:
 GETPIN
 SETDESC type more of whatever:
 GETPIN
 SETDESC testing confirmation
 confirm
-BYE" | ./spine
+BYE" | ./pinentry-dmenu
