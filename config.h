@@ -1,12 +1,13 @@
 /* See LICENSE file for copyright and license details. */
-static Bool topbar = True;
-static const char *fonts[]={
-	"Noto Sans UI:size=13"
+/* Default settings; can be overriden by command line. */
+
+static int topbar = 1;
+static const char *fonts[] = {
+	"monospace:size=10"
 };
-static const char *secstring = "● ● ";
-/*static char *description = NULL;*/
-static const char *prompt      = "🔑  Pinentry ";
-static const char *normbgcolor = "#000000";
-static const char *normfgcolor = "#ffffff";
-static const char *selbgcolor  = "#d9904a";
-static const char *selfgcolor  = "#ffffff";
+static const char *prompt = NULL;
+static const char *asterisk = "*";
+static const char *colors[SchemeLast][2] = {
+	[SchemeNorm] = { "#bbbbbb", "#222222" },
+	[SchemeSel] = { "#eeeeee", "#005577" }
+};

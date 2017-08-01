@@ -1,12 +1,14 @@
-#include <signal.h>
-#include <time.h>
+/* See LICENSE file for copyright and license details. */
 #include <ctype.h>
 #include <locale.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <strings.h>
 #include <string.h>
+#include <strings.h>
+#include <time.h>
 #include <unistd.h>
+
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
@@ -22,50 +24,54 @@
 #include "pinentry/memory.h"
 
 /* macros */
-#define INTERSECT(x, y, w, h, r) \
-            (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
-          && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
-#define LENGTH(X)    (sizeof X / sizeof X[0])
-#define TEXTNW(X, N) (drw_font_getexts_width(drw->fonts[0], (X), (N)))
-#define TEXTW(X)     (drw_text(drw, 0, 0, 0, 0, (X), 0) + drw->fonts[0]->h)
-
-const char *str_OK  = "OK\n";
-const char *str_ERRUNPARS = "ERR1337 dunno what to do with it\n";
-const char *str_ERRNOTIMP = "ERR4100 not implemented yet\n";
+#define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
+                            && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
+#define LENGTH(X)             (sizeof X / sizeof X[0])
+#define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeLast }; /* color schemes */
 enum { WinPin, WinConfirm }; /* window modes */
 enum { Ok, NotOk, Cancel }; /* return status */
 
-static char text[2048] = "";
-static int bh, mw, mh;
-static int inputw, promptw;
-static size_t cursor = 0;
-static Atom clip, utf8;
-static Window win;
-static XIC xic;
-static int mon = 0;
+struct item {
+	char *text;
+	struct item *left, *right;
+	int out;
+};
 
-static ClrScheme scheme[SchemeLast];
+static char text[BUFSIZ] = "";
+static char *embed;
+static int bh, mw, mh;
+static int inputw = 0, promptw, ppromptw;
+static int lrpad; /* sum of left and right padding */
+static size_t cursor;
+static struct item *items = NULL;
+static struct item *prev, *curr, *next, *sel;
+static int mon = -1, screen;
+
+static Atom clip, utf8;
 static Display *dpy;
-static int screen;
-static Window root;
+static Window root, parentwin, win;
+static XIC xic;
+
 static Drw *drw;
+static Clr *scheme[SchemeLast];
 
 static int timed_out;
-
 static int confirmed;
 static int winmode;
-
 pinentry_t pinentry;
 
 #include "config.h"
 
-void
+static void
 grabkeyboard(void) {
 	int i;
 
+	if (embed) {
+		return;
+	}
 	/* try to grab keyboard,
 	 * we may have to wait for another process to ungrab */
 	for (i = 0; i < 1000; i++) {
@@ -75,10 +81,11 @@ grabkeyboard(void) {
 		}
 		usleep(1000);
 	}
-	die("cannot grab keyboard\n");
+
+	die("cannot grab keyboard");
 }
 
-size_t
+static size_t
 nextrune(int cursor, int inc) {
 	ssize_t n;
 
@@ -88,8 +95,7 @@ nextrune(int cursor, int inc) {
 	return n;
 }
 
-
-void
+static void
 insert(const char *str, ssize_t n) {
 	if (strlen(text) + n > sizeof text - 1) {
 		return;
@@ -97,91 +103,123 @@ insert(const char *str, ssize_t n) {
 	
 	/* move existing text out of the way, insert new text, and update cursor */
 	memmove(&text[cursor + n], &text[cursor], sizeof text - cursor - MAX(n, 0));
-	
+
 	if (n > 0) {
 		memcpy(&text[cursor], str, n);
 	}
 	cursor += n;
 }
 
-void
+static void
 drawwin(void) {
-	int curpos;
-	int x = 0, y = 0, w;
-	char *sectext;
-	int i;
+	unsigned int curpos;
+	int x = 0, y = 0, w, i;
+	size_t asterlen = strlen(asterisk);
+	char* censort = ecalloc(1, asterlen * sizeof(text));
+#if 0
+	/* TODO: Code from first pintenry-demnu version */
+	char *sectext = malloc(sizeof (char) * 2048);
 	int seccursor = 0;
-	ssize_t n;
+	int n;
+#endif
 
-	drw_setscheme(drw, &scheme[SchemeNorm]);
-	drw_rect(drw, 0, 0, mw, mh, True, 1, 1);
+	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
-	if ((pinentry->description) && *(pinentry->description)) {
-		drw_setscheme(drw, &scheme[SchemeSel]);
-		drw_text(drw, 0, 0, mw, bh, pinentry->description, 0);
-		y += bh;
+	if (prompt && *prompt) {
+		drw_setscheme(drw, scheme[SchemeSel]);
+		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
 	}
 
-	if ((pinentry->prompt) && *(pinentry->prompt)) {
-		drw_setscheme(drw, &scheme[SchemeSel]);
-		drw_text(drw, x, y, promptw, bh, pinentry->prompt, 0);
-		x += promptw;
+	if (pinentry->prompt && *pinentry->prompt) {
+		drw_setscheme(drw, scheme[SchemeSel]);
+		drw_text(drw, x, y, ppromptw, bh, lrpad / 2, pinentry->prompt, 0);
+		x += ppromptw;
 	}
 
+	/* Draw input field */
 	w = inputw;
-	drw_setscheme(drw, &scheme[SchemeNorm]);
+	drw_setscheme(drw, scheme[SchemeNorm]);
 
-	sectext = malloc (sizeof (char) * 2048);
+#if 0
+	/* TODO: Code from first pintenry-demnu version */
 	sectext[0] = '\0';
 
-	for (i=0; text[i] != '\0'; i = nextrune(i, +1)) {
-		strcat(sectext, secstring);
+	for (i = 0; text[i] != '\0'; i = nextrune(i, +1)) {
+		strcat(sectext, asterisk);
 
 		if (i < cursor) {
-			for (n = seccursor + 1; n + 1 >= 0 && (sectext[n] & 0xc0) == 0x80;
-			     n ++);
+			for (n = seccursor + 1; n > 0 && (sectext[n] & 0xc0) == 0x80; n++);
 			seccursor = n;
 		}
 	}
+#endif
 
 	if (winmode == WinPin) {
-		drw_text(drw, x, y, mw, bh, sectext, 0);
+#if 0
+		/* TODO: Code from first pintenry-demnu version */
+		drw_text(drw, x, y, mw, bh, lrpad / 2, censort, 0);
 		
-		if ((curpos = TEXTNW(sectext, seccursor) + bh/2 - 2) < w) {
-			drw_rect(drw, x + curpos + 2, y + 2,  1 , bh - 4 , True, 1, 0);
+		drw_font_getexts(drw->fonts, sectext, seccursor, &curpos, NULL);
+		curpos += bh / 2 - 2;
+		if (curpos < w) {
+			drw_rect(drw, x + curpos + 2, y + 2, 1, bh - 4, 1, 0);
 		}
+#else
+		for (i = 0; i < asterlen * strlen(text); i += asterlen) {
+			memcpy(&censort[i], asterisk, asterlen);
+		}
+
+		censort[i+1] = '\n';
+		drw_text(drw, x, 0, w, bh, lrpad / 2, censort, 0);
+		drw_font_getexts(drw->fonts, censort, cursor * asterlen, &curpos, NULL);
+#endif
+		free(censort);
 	} else {
-		drw_text(drw, x, y, mw, bh, "(y/n)", 0);
+		// TODO: Do this with a list view? 3 entries: startentry/neutral, YES and NO
+		drw_text(drw, x, y, mw, bh, lrpad / 2, "(y/n)", 0);
 	}
+
+#if 0
+	/* This is code from the first pinentry-dmenu version */
+	if ((curpos += lrpad / 2 - 1) < w) {
+		drw_setscheme(drw, scheme[SchemeNorm]);
+		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+	}
+#endif
 
 	drw_map(drw, win, 0, 0, mw, mh);
 }
 
-void
-setup(void){
-	int x, y;
-	Window pw;
-	XWindowAttributes wa;
-#ifdef XINERAMA
+static void
+setup(void) {
+	int x, y, i = 0;
 	unsigned int du;
-	int a, i, di, n, j, area = 0;
-	Window w, dw, *dws;
-	XineramaScreenInfo *info;
-#endif
+	const char* pprompt = pinentry->prompt;
 	XSetWindowAttributes swa;
 	XIM xim;
-	scheme[SchemeNorm].bg = drw_clr_create(drw, normbgcolor);
-	scheme[SchemeNorm].fg = drw_clr_create(drw, normfgcolor);
-	scheme[SchemeSel].bg = drw_clr_create(drw, selbgcolor);
-	scheme[SchemeSel].fg = drw_clr_create(drw, selfgcolor);
+	Window w, dw, *dws;
+	XWindowAttributes wa;
+#ifdef XINERAMA
+	XineramaScreenInfo *info;
+	Window pw;
+	int a, j, di, n, area = 0;
+#endif
+
+	/* Init appearance */
+	scheme[SchemeNorm] = drw_scm_create(drw, colors[SchemeNorm], 2);
+	scheme[SchemeSel] = drw_scm_create(drw, colors[SchemeSel], 2);
+
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
-	bh = drw->fonts[0]->h + 2;
+
+	/* Calculate menu geometry */
+	bh = drw->fonts->h + 2;
 	mh = bh;
 #ifdef XINERAMA
 	info = XineramaQueryScreens(dpy, &n);
-	
-	if (info) {
+
+	if (parentwin == root && info) {
 		XGetInputFocus(dpy, &w, &di);
 		if (mon >= 0 && mon < n) {
 			i = mon;
@@ -212,6 +250,7 @@ setup(void){
 				}
 			}
 		}
+
 		x = info[i].x_org;
 		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
 		mw = info[i].width;
@@ -219,45 +258,54 @@ setup(void){
 	} else
 #endif
 	{
-		if (!XGetWindowAttributes(dpy, root, &wa)) {
-			die("could not get embedding window attributes: 0x%lx", root);
+		if (!XGetWindowAttributes(dpy, parentwin, &wa)) {
+			die("could not get embedding window attributes: 0x%lx", parentwin);
 		}
 		x = 0;
 		y = topbar ? 0 : wa.height - mh;
 		mw = wa.width;
 	}
-	/* FIXME */
-	if (pinentry->prompt && *(pinentry->prompt)) {
-		promptw = TEXTW(pinentry->prompt);
-	} else {
-		promptw = 0;
-	}
-	inputw = mw-promptw;
+
+	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+	ppromptw = (pprompt && *pprompt) ? TEXTW(pprompt) : 0;
+	inputw = MIN(inputw, mw / 3);
+
+	/* create menu window */
 	swa.override_redirect = True;
-	swa.background_pixel = scheme[SchemeNorm].bg->pix;
+	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
-	win = XCreateWindow(dpy, root, x, y, mw, mh, 0,
-	                    DefaultDepth(dpy, screen), CopyFromParent,
-	                    DefaultVisual(dpy, screen),
+	win = XCreateWindow(dpy, parentwin, x, y, mw, mh, 0,
+	                    CopyFromParent, CopyFromParent, CopyFromParent,
 	                    CWOverrideRedirect | CWBackPixel | CWEventMask, &swa);
 
+	/* Open input methods */
 	xim = XOpenIM(dpy, NULL, NULL, NULL);
 	xic = XCreateIC(xim, XNInputStyle, XIMPreeditNothing | XIMStatusNothing,
 	                XNClientWindow, win, XNFocusWindow, win, NULL);
-
 	XMapRaised(dpy, win);
-	drw_resize(drw, mw, mh);
 
+	if (embed) {
+		XSelectInput(dpy, parentwin, FocusChangeMask);
+
+		if (XQueryTree(dpy, parentwin, &dw, &w, &dws, &du) && dws) {
+			for (i = 0; i < du && dws[i] != win; ++i) {
+				XSelectInput(dpy, dws[i], FocusChangeMask);
+			}
+
+			XFree(dws);
+		}
+		grabfocus();
+	}
+
+	drw_resize(drw, mw, mh);
 	drawwin();
 }
 
-void
+static void
 cleanup(void) {
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
-	drw_clr_free(scheme[SchemeNorm].bg);
-	drw_clr_free(scheme[SchemeNorm].fg);
-	drw_clr_free(scheme[SchemeSel].fg);
-	drw_clr_free(scheme[SchemeSel].bg);
+	free(scheme[SchemeNorm]);
+	free(scheme[SchemeSel]);
 	drw_free(drw);
 	XSync(dpy, False);
 	XCloseDisplay(dpy);
@@ -277,14 +325,17 @@ keypress(XKeyEvent *ev) {
 	}
 
 	if (winmode == WinConfirm) {
-		switch(ksym){
+		switch(ksym) {
 		case XK_KP_Enter:
 		case XK_Return:
+
 		case XK_y:
+		case XK_Y:
 			confirmed = 1;
 			return 1;
 			break;
 		case XK_n:
+		case XK_N:
 			confirmed = 0;
 			return 1;
 			break;
@@ -295,7 +346,7 @@ keypress(XKeyEvent *ev) {
 			break;
 		}
 	} else {
-		switch(ksym){
+		switch(ksym) {
 		default:
 			if (!iscntrl(*buf)) {
 				insert(buf, len);
@@ -335,21 +386,23 @@ keypress(XKeyEvent *ev) {
 			break;
 		}
 	}
+
 	drawwin();
+
 	return 0;
 }
 
-void
+static void
 paste(void) {
 	char *p, *q;
 	int di;
 	unsigned long dl;
 	Atom da;
 
-	/* we have been given the current selection, now insert it into input */
+	/* We have been given the current selection, now insert it into input */
 	XGetWindowProperty(dpy, win, utf8, 0, (sizeof text / 4) + 1, False,
 	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p);
-	insert(p, (q = strchr(p, '\n')) ? q-p : (ssize_t)strlen(p));
+	insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t) strlen(p));
 	XFree(p);
 	drawwin();
 }
@@ -414,7 +467,7 @@ password (void) {
 	
 	buf = secmem_malloc(strlen(text));
 	strcpy(buf, text);
-	pinentry_setbuffer_use (pinentry, buf, 0);
+	pinentry_setbuffer_use(pinentry, buf, 0);
 	
 	return 1;
 }
@@ -429,31 +482,34 @@ confirm(void) {
 }
 
 static int
-cmdhandler (pinentry_t recieved_pinentry) {
+cmdhandler(pinentry_t received_pinentry) {
 	struct sigaction sa;
 	XWindowAttributes wa;
 	
 	text[0]='\0';
 	cursor = 0;
-	pinentry = recieved_pinentry;
+	pinentry = received_pinentry;
 
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale()) {
 		fputs("warning: no locale support\n", stderr);
 	}
-	if (!(dpy = XOpenDisplay(pinentry->display))) { /* NULL was here */
-		die("dmenu: cannot open display\n");
+	if (!(dpy = XOpenDisplay(pinentry->display))) {
+		die("cannot open display");
 	}
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	if (!XGetWindowAttributes(dpy, root, &wa)) {
-		die("could not get embedding window attributes: 0x%lx", root);
+	if (!embed || !(parentwin = strtol(embed, NULL, 0))) {
+		parentwin = root;
+	}
+	if (!XGetWindowAttributes(dpy, parentwin, &wa)) {
+		die("could not get embedding window attributes: 0x%lx", parentwin);
 	}
 	drw = drw_create(dpy, screen, root, wa.width, wa.height);
-	drw_load_fonts(drw, fonts, LENGTH(fonts));
-	if (!drw->fontcount) {
-		die("No fonts could be loaded.\n");
+	if (!drw_fontset_create(drw, fonts, LENGTH(fonts))) {
+		die("no fonts could be loaded.");
 	}
-	drw_setscheme(drw, &scheme[SchemeNorm]);
+	lrpad = drw->fonts->h;
+	drw_setscheme(drw, scheme[SchemeNorm]);
 
 	if (pinentry->timeout) {
 		memset(&sa, 0, sizeof(sa));
