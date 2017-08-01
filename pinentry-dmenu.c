@@ -33,21 +33,15 @@
 enum { SchemeNorm, SchemeSel, SchemeLast }; /* color schemes */
 enum { WinPin, WinConfirm }; /* window modes */
 enum { Ok, NotOk, Cancel }; /* return status */
-
-struct item {
-	char *text;
-	struct item *left, *right;
-	int out;
-};
+enum { Nothing, Yes, No }; /* confirm dialog */
 
 static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
-static int inputw = 0, promptw, ppromptw;
+static int sel;
+static int promptw, ppromptw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
-static struct item *items = NULL;
-static struct item *prev, *curr, *next, *sel;
 static int mon = -1, screen;
 
 static Atom clip, utf8;
@@ -113,7 +107,7 @@ insert(const char *str, ssize_t n) {
 static void
 drawwin(void) {
 	unsigned int curpos;
-	int x = 0, y = 0, w, i;
+	int x = 0, y = 0, w = 0, i;
 	size_t asterlen = strlen(asterisk);
 	char* censort = ecalloc(1, asterlen * sizeof(text));
 #if 0
@@ -138,7 +132,6 @@ drawwin(void) {
 	}
 
 	/* Draw input field */
-	w = inputw;
 	drw_setscheme(drw, scheme[SchemeNorm]);
 
 #if 0
@@ -176,8 +169,9 @@ drawwin(void) {
 #endif
 		free(censort);
 	} else {
-		// TODO: Do this with a list view? 3 entries: startentry/neutral, YES and NO
-		drw_text(drw, x, y, mw, bh, lrpad / 2, "(y/n)", 0);
+		x += TEXTW(" ");
+		x = drawitem("No", (sel == No), x, 0, TEXTW("No"));
+		x = drawitem("Yes", (sel == Yes), x, 0, TEXTW("Yes"));
 	}
 
 #if 0
@@ -268,7 +262,6 @@ setup(void) {
 
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 	ppromptw = (pprompt && *pprompt) ? TEXTW(pprompt) : 0;
-	inputw = MIN(inputw, mw / 3);
 
 	/* create menu window */
 	swa.override_redirect = True;
@@ -328,21 +321,27 @@ keypress(XKeyEvent *ev) {
 		switch(ksym) {
 		case XK_KP_Enter:
 		case XK_Return:
-
+			if (sel != Nothing) {
+				return 1;
+			}
+			break;
 		case XK_y:
 		case XK_Y:
-			confirmed = 1;
+			sel = Yes;
 			return 1;
-			break;
 		case XK_n:
 		case XK_N:
-			confirmed = 0;
+			sel = No;
 			return 1;
-			break;
 		case XK_Escape:
 			pinentry->canceled = 1;
-			confirmed = 0;
+			sel = No;
 			return 1;
+		case XK_Left:
+			sel = No;
+			break;
+		case XK_Right:
+			sel = Yes;
 			break;
 		}
 	} else {
@@ -475,10 +474,10 @@ password (void) {
 static int
 confirm(void) {
 	winmode = WinConfirm;
-	confirmed = 0;
+	sel = Nothing;
 	promptwin();
 	
-	return confirmed;
+	return sel != No;
 }
 
 static int
