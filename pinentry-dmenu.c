@@ -28,6 +28,8 @@
                             && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
 #define LENGTH(X)             (sizeof X / sizeof X[0])
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
+#define MINDESCLEN 8
+
 
 /* enums */
 enum { SchemeNorm, SchemeSel, SchemeLast }; /* color schemes */
@@ -39,7 +41,7 @@ static char text[BUFSIZ] = "";
 static char *embed;
 static int bh, mw, mh;
 static int sel;
-static int promptw, ppromptw;
+static int promptw, ppromptw, pdescw;
 static int lrpad; /* sum of left and right padding */
 static size_t cursor;
 static int mon = -1, screen;
@@ -53,11 +55,37 @@ static Drw *drw;
 static Clr *scheme[SchemeLast];
 
 static int timed_out;
-static int confirmed;
 static int winmode;
 pinentry_t pinentry;
 
 #include "config.h"
+
+static int
+drawitem(const char* text, Bool sel, int x, int y, int w) {
+	unsigned int i = (sel) ? SchemeSel : SchemeNorm;
+
+	drw_setscheme(drw, scheme[i]);
+
+	return drw_text(drw, x, y, w, bh, lrpad / 2, text, 0);
+}
+
+// XXX: Delete this function
+static void
+grabfocus(void) {
+	Window focuswin;
+	int i, revertwin;
+
+	for (i = 0; i < 100; ++i) {
+		XGetInputFocus(dpy, &focuswin, &revertwin);
+		if (focuswin == win) {
+			return;
+		}
+		XSetInputFocus(dpy, win, RevertToParent, CurrentTime);
+		usleep(1000);
+	}
+
+	die("cannot grab focus");
+}
 
 static void
 grabkeyboard(void) {
@@ -107,9 +135,13 @@ insert(const char *str, ssize_t n) {
 static void
 drawwin(void) {
 	unsigned int curpos;
-	int x = 0, y = 0, w = 0, i;
+	int x = 0, wb = 0, pb = 0, pbw, i;
 	size_t asterlen = strlen(asterisk);
+	size_t pdesclen;
 	char* censort = ecalloc(1, asterlen * sizeof(text));
+	
+	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
+	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
 #if 0
 	/* TODO: Code from first pintenry-demnu version */
 	char *sectext = malloc(sizeof (char) * 2048);
@@ -127,36 +159,44 @@ drawwin(void) {
 
 	if (pinentry->prompt && *pinentry->prompt) {
 		drw_setscheme(drw, scheme[SchemeSel]);
-		drw_text(drw, x, y, ppromptw, bh, lrpad / 2, pinentry->prompt, 0);
+		drw_text(drw, x, 0, ppromptw, bh, lrpad / 2, pinentry->prompt, 0);
 		x += ppromptw;
+	}
+
+	if (pinentry->description && *pinentry->description) {
+		pb = mw - x;
+		pdesclen = strlen(pinentry->description);
+		
+		if (pb > 0) {
+			pb -= (winmode == WinPin) ? censortl : confirml;
+			pbw = MINDESCLEN * pdescw / pdesclen;
+			pbw = MIN(pbw, pdescw);
+
+			if (pb >= pbw) {
+				pbw = MAX(pbw, pdescw);
+				pbw = MIN(pbw, pb);
+				pb = mw - pbw;
+				drawitem(pinentry->description, True, pb, 0, pbw);
+			} else {
+				pb = 0;
+			}
+		} else {
+			pb = 0;
+		}
 	}
 
 	/* Draw input field */
 	drw_setscheme(drw, scheme[SchemeNorm]);
 
-#if 0
-	/* TODO: Code from first pintenry-demnu version */
-	sectext[0] = '\0';
-
-	for (i = 0; text[i] != '\0'; i = nextrune(i, +1)) {
-		strcat(sectext, asterisk);
-
-		if (i < cursor) {
-			for (n = seccursor + 1; n > 0 && (sectext[n] & 0xc0) == 0x80; n++);
-			seccursor = n;
-		}
-	}
-#endif
-
 	if (winmode == WinPin) {
 #if 0
 		/* TODO: Code from first pintenry-demnu version */
-		drw_text(drw, x, y, mw, bh, lrpad / 2, censort, 0);
+		drw_text(drw, x, 0, mw, bh, lrpad / 2, censort, 0);
 		
 		drw_font_getexts(drw->fonts, sectext, seccursor, &curpos, NULL);
 		curpos += bh / 2 - 2;
 		if (curpos < w) {
-			drw_rect(drw, x + curpos + 2, y + 2, 1, bh - 4, 1, 0);
+			drw_rect(drw, x + curpos + 2, 0 + 2, 1, bh - 4, 1, 0);
 		}
 #else
 		for (i = 0; i < asterlen * strlen(text); i += asterlen) {
@@ -164,7 +204,8 @@ drawwin(void) {
 		}
 
 		censort[i+1] = '\n';
-		drw_text(drw, x, 0, w, bh, lrpad / 2, censort, 0);
+		// FIXME: Set length
+		drw_text(drw, x, 0, mw - x - pbw, bh, lrpad / 2, censort, 0);
 		drw_font_getexts(drw->fonts, censort, cursor * asterlen, &curpos, NULL);
 #endif
 		free(censort);
@@ -190,6 +231,7 @@ setup(void) {
 	int x, y, i = 0;
 	unsigned int du;
 	const char* pprompt = pinentry->prompt;
+	const char* pdesc = pinentry->description;
 	XSetWindowAttributes swa;
 	XIM xim;
 	Window w, dw, *dws;
@@ -262,6 +304,7 @@ setup(void) {
 
 	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 	ppromptw = (pprompt && *pprompt) ? TEXTW(pprompt) : 0;
+	pdescw = (pdesc && *pdesc) ? TEXTW(pdesc) : 0;
 
 	/* create menu window */
 	swa.override_redirect = True;
@@ -526,10 +569,59 @@ cmdhandler(pinentry_t received_pinentry) {
 	return -1;
 }
 
+static void
+usage(void) {
+	fputs("usage: dmenu [-biv] [-P symbol] [-p prompt] [-fn font] [-m monitor]\n"
+	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n", stderr);
+	exit(1);
+}
+
 pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
 
 int
 main(int argc, char *argv[]) {
+#if 0
+	/* TODO: Add argparse for dmenu parameters */
+	int i = 0;
+
+	for (i = 1; i < argc; i++)
+		/* these options take no arguments */
+		if (!strcmp(argv[i], "-v")) {          /* prints version information */
+			puts("dmenu-"VERSION);
+			exit(0);
+		} else if (!strcmp(argv[i], "-b")) {   /* appears at the bottom of the screen */
+			topbar = 0;
+		} else if (!strcmp(argv[i], "-f")) {   /* ignore this parameter */
+			;
+		} else if (!strcmp(argv[i], "-i")) {   /* ignore this parameter */
+			;
+		} else if (!strcmp(argv[i], "-P")) {   /* sets the minimum length of pw field */
+			minpwlen = argv[++i];
+		} else if (i + 1 == argc) {
+			usage();
+		/* these options take one argument */
+		} else if (!strcmp(argv[i], "-l")) {   /* ignore this parameter */
+			++i;
+		} else if (!strcmp(argv[i], "-m")) {
+			mon = atoi(argv[++i]);
+		} else if (!strcmp(argv[i], "-p")) {   /* adds prompt to left of input field */
+			prompt = argv[++i];
+		} else if (!strcmp(argv[i], "-fn")) {  /* font or font set */
+			fonts[0] = argv[++i];
+		} else if (!strcmp(argv[i], "-nb")) {  /* normal background color */
+			colors[SchemeNorm][ColBg] = argv[++i];
+		} else if (!strcmp(argv[i], "-nf")) {  /* normal foreground color */
+			colors[SchemeNorm][ColFg] = argv[++i];
+		} else if (!strcmp(argv[i], "-sb")) {  /* selected background color */
+			colors[SchemeSel][ColBg] = argv[++i];
+		} else if (!strcmp(argv[i], "-sf")) {  /* selected foreground color */
+			colors[SchemeSel][ColFg] = argv[++i];
+		} else if (!strcmp(argv[i], "-w")) {   /* embedding window id */
+			embed = argv[++i];
+		} else {
+			usage();
+		}
+#endif
 	pinentry_init("pinentry-dmenu");
 	pinentry_parse_opts(argc, argv);
 	

@@ -2,12 +2,13 @@
 /* Default settings; can be overriden by command line. */
 
 static int topbar = 1;
+static int minpwlen = 32;
 static const char *fonts[] = {
-	"monospace:size=10"
+	"Noto Sans UI:size=13" // "monospace:size=10"
 };
-static const char *prompt = NULL;
-static const char *asterisk = "*";
+static const char *prompt = "🔑"; //NULL;
+static const char *asterisk = "● "; //"*";
 static const char *colors[SchemeLast][2] = {
-	[SchemeNorm] = { "#bbbbbb", "#222222" },
-	[SchemeSel] = { "#eeeeee", "#005577" }
+	[SchemeNorm] = { "#ffffff", "#000000" }, // "#bbbbbb", "#222222" },
+	[SchemeSel] = { "#eeeeee", "#d9904a" } // "#eeeeee", "#005577" }
 };
