@@ -135,19 +135,13 @@ insert(const char *str, ssize_t n) {
 static void
 drawwin(void) {
 	unsigned int curpos;
-	int x = 0, wb = 0, pb = 0, pbw, i;
+	int x = 0, pb = 0, pbw, i;
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
 	char* censort = ecalloc(1, asterlen * sizeof(text));
 	
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
 	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
-#if 0
-	/* TODO: Code from first pintenry-demnu version */
-	char *sectext = malloc(sizeof (char) * 2048);
-	int seccursor = 0;
-	int n;
-#endif
 
 	drw_setscheme(drw, scheme[SchemeNorm]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
@@ -189,39 +183,19 @@ drawwin(void) {
 	drw_setscheme(drw, scheme[SchemeNorm]);
 
 	if (winmode == WinPin) {
-#if 0
-		/* TODO: Code from first pintenry-demnu version */
-		drw_text(drw, x, 0, mw, bh, lrpad / 2, censort, 0);
-		
-		drw_font_getexts(drw->fonts, sectext, seccursor, &curpos, NULL);
-		curpos += bh / 2 - 2;
-		if (curpos < w) {
-			drw_rect(drw, x + curpos + 2, 0 + 2, 1, bh - 4, 1, 0);
-		}
-#else
 		for (i = 0; i < asterlen * strlen(text); i += asterlen) {
 			memcpy(&censort[i], asterisk, asterlen);
 		}
 
 		censort[i+1] = '\n';
-		// FIXME: Set length
 		drw_text(drw, x, 0, mw - x - pbw, bh, lrpad / 2, censort, 0);
 		drw_font_getexts(drw->fonts, censort, cursor * asterlen, &curpos, NULL);
-#endif
 		free(censort);
 	} else {
 		x += TEXTW(" ");
 		x = drawitem("No", (sel == No), x, 0, TEXTW("No"));
 		x = drawitem("Yes", (sel == Yes), x, 0, TEXTW("Yes"));
 	}
-
-#if 0
-	/* This is code from the first pinentry-dmenu version */
-	if ((curpos += lrpad / 2 - 1) < w) {
-		drw_setscheme(drw, scheme[SchemeNorm]);
-		drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
-	}
-#endif
 
 	drw_map(drw, win, 0, 0, mw, mh);
 }
