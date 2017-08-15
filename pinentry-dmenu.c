@@ -135,7 +135,7 @@ insert(const char *str, ssize_t n) {
 static void
 drawwin(void) {
 	unsigned int curpos;
-	int x = 0, pb = 0, pbw, i;
+	int x = 0, pb = 0, pbw = 0, i;
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
 	char* censort = ecalloc(1, asterlen * sizeof(text));
