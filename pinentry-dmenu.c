@@ -570,15 +570,12 @@ main(int argc, char *argv[]) {
 	const char *str;
 	char path[PATH_MAX];
 	struct passwd *pw = getpwuid(getuid());
+	config_t cfg;
 
+	config_init(&cfg);
 	i = strlen(pw->pw_dir);
 	strcpy(path, pw->pw_dir);
 	strcpy(&path[i], CONFIG);
-
-	config_t cfg;
-	config_setting_t *setting;
-
-	config_init(&cfg);
 
 	/* Read the file. If there is an error, report it and exit. */
 	if (config_read_file(&cfg, path)) {
@@ -627,7 +624,7 @@ main(int argc, char *argv[]) {
 		if (config_lookup_bool(&cfg, "embedded", &bval)) {
 			embedded = bval;
 		}
-	} else if (str = config_error_file(&cfg)) {
+	} else if ((str = config_error_file(&cfg))) {
 		fprintf(stderr, "%s:%d: %s\n", config_error_file(&cfg),
 		        config_error_line(&cfg), config_error_text(&cfg));
 		return(EXIT_FAILURE);
