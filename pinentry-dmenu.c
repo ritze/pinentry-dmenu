@@ -1,5 +1,6 @@
 /* See LICENSE file for copyright and license details. */
 #include <ctype.h>
+#include <libconfig.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdio.h>
@@ -30,14 +31,16 @@
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 #define MINDESCLEN 8
 
+#define CONFIGPATH $HOME/.gnupg/pinentry-dmenu.conf
 
 /* enums */
-enum { SchemeNorm, SchemeSel, SchemeLast }; /* color schemes */
+enum { SchemePrompt, SchemeNormal, SchemeSelect, SchemeDesc, SchemeLast }; /* color schemes */
 enum { WinPin, WinConfirm }; /* window modes */
 enum { Ok, NotOk, Cancel }; /* return status */
 enum { Nothing, Yes, No }; /* confirm dialog */
 
 static char text[BUFSIZ] = "";
+//static char *text;
 static char *embed;
 static int bh, mw, mh;
 static int sel;
@@ -62,7 +65,7 @@ pinentry_t pinentry;
 
 static int
 drawitem(const char* text, Bool sel, int x, int y, int w) {
-	unsigned int i = (sel) ? SchemeSel : SchemeNorm;
+	unsigned int i = (sel) ? SchemeSelect : SchemeNormal;
 
 	drw_setscheme(drw, scheme[i]);
 
@@ -138,21 +141,22 @@ drawwin(void) {
 	int x = 0, pb = 0, pbw = 0, i;
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
+	char* desc;
 	char* censort = ecalloc(1, asterlen * sizeof(text));
 	
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
 	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
 
-	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_setscheme(drw, scheme[SchemeNormal]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
 	if (prompt && *prompt) {
-		drw_setscheme(drw, scheme[SchemeSel]);
+		drw_setscheme(drw, scheme[SchemePrompt]);
 		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
 	}
 
 	if (pinentry->prompt && *pinentry->prompt) {
-		drw_setscheme(drw, scheme[SchemeSel]);
+		drw_setscheme(drw, scheme[SchemePrompt]);
 		drw_text(drw, x, 0, ppromptw, bh, lrpad / 2, pinentry->prompt, 0);
 		x += ppromptw;
 	}
@@ -170,7 +174,9 @@ drawwin(void) {
 				pbw = MAX(pbw, pdescw);
 				pbw = MIN(pbw, pb);
 				pb = mw - pbw;
-				drawitem(pinentry->description, True, pb, 0, pbw);
+				desc = pinentry->description;
+				drw_setscheme(drw, scheme[SchemeDesc]);
+				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, desc, 0);
 			} else {
 				pb = 0;
 			}
@@ -180,7 +186,7 @@ drawwin(void) {
 	}
 
 	/* Draw input field */
-	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_setscheme(drw, scheme[SchemeNormal]);
 
 	if (winmode == WinPin) {
 		for (i = 0; i < asterlen * strlen(text); i += asterlen) {
@@ -217,9 +223,12 @@ setup(void) {
 #endif
 
 	/* Init appearance */
-	scheme[SchemeNorm] = drw_scm_create(drw, colors[SchemeNorm], 2);
-	scheme[SchemeSel] = drw_scm_create(drw, colors[SchemeSel], 2);
+	scheme[SchemePrompt] = drw_scm_create(drw, colors[SchemePrompt], 2);
+	scheme[SchemeNormal] = drw_scm_create(drw, colors[SchemeNormal], 2);
+	scheme[SchemeSelect] = drw_scm_create(drw, colors[SchemeSelect], 2);
+	scheme[SchemeDesc]   = drw_scm_create(drw, colors[SchemeDesc],   2);
 
+	text[0] = '\0';
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 
@@ -282,7 +291,7 @@ setup(void) {
 
 	/* create menu window */
 	swa.override_redirect = True;
-	swa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
+	swa.background_pixel = scheme[SchemePrompt][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
 	win = XCreateWindow(dpy, parentwin, x, y, mw, mh, 0,
 	                    CopyFromParent, CopyFromParent, CopyFromParent,
@@ -314,8 +323,10 @@ setup(void) {
 static void
 cleanup(void) {
 	XUngrabKey(dpy, AnyKey, AnyModifier, root);
-	free(scheme[SchemeNorm]);
-	free(scheme[SchemeSel]);
+	free(scheme[SchemeDesc]);
+	free(scheme[SchemeSelect]);
+	free(scheme[SchemeNormal]);
+	free(scheme[SchemePrompt]);
 	drw_free(drw);
 	XSync(dpy, False);
 	XCloseDisplay(dpy);
@@ -392,7 +403,7 @@ keypress(XKeyEvent *ev) {
 			}
 			break;
 		case XK_Right:
-			if (text[cursor]!='\0') {
+			if (text[cursor] != '\0') {
 				cursor = nextrune(cursor, +1);
 			}
 			break;
@@ -471,19 +482,25 @@ catchsig(int sig) {
 }
 
 static int
-password (void) {
+password(void) {
 	char *buf;
-	
+//	text = secmem_malloc(BUFSIZ);
+
 	winmode = WinPin;
 	promptwin();
 	
 	if (pinentry->canceled) {
+//		secmem_free(text);
 		return -1;
 	}
-	
-	buf = secmem_malloc(strlen(text));
-	strcpy(buf, text);
-	pinentry_setbuffer_use(pinentry, buf, 0);
+//printf("text = %s\n", text);
+buf = secmem_malloc(strlen(text));
+strcpy(buf, text);
+
+//	pinentry_setbuffer_use(pinentry, text, 0);
+pinentry_setbuffer_use(pinentry, buf, 0);
+//secmem_free(buf);
+//	secmem_free(text);
 	
 	return 1;
 }
@@ -502,7 +519,6 @@ cmdhandler(pinentry_t received_pinentry) {
 	struct sigaction sa;
 	XWindowAttributes wa;
 	
-	text[0]='\0';
 	cursor = 0;
 	pinentry = received_pinentry;
 
@@ -525,7 +541,7 @@ cmdhandler(pinentry_t received_pinentry) {
 		die("no fonts could be loaded.");
 	}
 	lrpad = drw->fonts->h;
-	drw_setscheme(drw, scheme[SchemeNorm]);
+	drw_setscheme(drw, scheme[SchemePrompt]);
 
 	if (pinentry->timeout) {
 		memset(&sa, 0, sizeof(sa));
@@ -543,65 +559,82 @@ cmdhandler(pinentry_t received_pinentry) {
 	return -1;
 }
 
-static void
-usage(void) {
-	fputs("usage: dmenu [-biv] [-P symbol] [-p prompt] [-fn font] [-m monitor]\n"
-	      "             [-nb color] [-nf color] [-sb color] [-sf color] [-w windowid]\n", stderr);
-	exit(1);
-}
-
 pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
 
 int
 main(int argc, char *argv[]) {
-#if 0
-	/* TODO: Add argparse for dmenu parameters */
-	int i = 0;
+	Bool bval;
+	int val;
+	const char *str;
 
-	for (i = 1; i < argc; i++)
-		/* these options take no arguments */
-		if (!strcmp(argv[i], "-v")) {          /* prints version information */
-			puts("dmenu-"VERSION);
-			exit(0);
-		} else if (!strcmp(argv[i], "-b")) {   /* appears at the bottom of the screen */
-			topbar = 0;
-		} else if (!strcmp(argv[i], "-f")) {   /* ignore this parameter */
-			;
-		} else if (!strcmp(argv[i], "-i")) {   /* ignore this parameter */
-			;
-		} else if (!strcmp(argv[i], "-P")) {   /* sets the minimum length of pw field */
-			minpwlen = argv[++i];
-		} else if (i + 1 == argc) {
-			usage();
-		/* these options take one argument */
-		} else if (!strcmp(argv[i], "-l")) {   /* ignore this parameter */
-			++i;
-		} else if (!strcmp(argv[i], "-m")) {
-			mon = atoi(argv[++i]);
-		} else if (!strcmp(argv[i], "-p")) {   /* adds prompt to left of input field */
-			prompt = argv[++i];
-		} else if (!strcmp(argv[i], "-fn")) {  /* font or font set */
-			fonts[0] = argv[++i];
-		} else if (!strcmp(argv[i], "-nb")) {  /* normal background color */
-			colors[SchemeNorm][ColBg] = argv[++i];
-		} else if (!strcmp(argv[i], "-nf")) {  /* normal foreground color */
-			colors[SchemeNorm][ColFg] = argv[++i];
-		} else if (!strcmp(argv[i], "-sb")) {  /* selected background color */
-			colors[SchemeSel][ColBg] = argv[++i];
-		} else if (!strcmp(argv[i], "-sf")) {  /* selected foreground color */
-			colors[SchemeSel][ColFg] = argv[++i];
-		} else if (!strcmp(argv[i], "-w")) {   /* embedding window id */
-			embed = argv[++i];
-		} else {
-			usage();
-		}
-#endif
+	config_t cfg;
+	config_setting_t *setting;
+
+	config_init(&cfg);
+
+	/* Read the file. If there is an error, report it and exit. */
+	if (!config_read_file(&cfg, "example.cfg")) {
+		fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
+		        config_error_line(&cfg), config_error_text(&cfg));
+		config_destroy(&cfg);
+		return(EXIT_FAILURE);
+	}
+
+	if (config_lookup_string(&cfg, "asterisk", &str)) {
+		asterisk = str;
+	}
+	if (config_lookup_bool(&cfg, "buttom", &bval)) {
+		topbar = !bval;
+	}
+	if (config_lookup_int(&cfg, "min_password_length", &val)) {
+		minpwlen = val;
+	}
+	if (config_lookup_int(&cfg, "monitor", &val)) {
+		mon = val;
+	}
+	if (config_lookup_string(&cfg, "prompt", &str)) {
+		prompt = str;
+	}
+
+	if (config_lookup_string(&cfg, "font", &str)) {
+		fonts[0] = str;
+	}
+	if (config_lookup_string(&cfg, "prompt_bg", &str)) {
+		colors[SchemePrompt][ColBg] = str;
+	}
+	if (config_lookup_string(&cfg, "prompt_fg", &str)) {
+		colors[SchemePrompt][ColFg] = str;
+	}
+	if (config_lookup_string(&cfg, "normal_bg", &str)) {
+		colors[SchemeNormal][ColBg] = str;
+	}
+	if (config_lookup_string(&cfg, "normal_fg", &str)) {
+		colors[SchemeNormal][ColFg] = str;
+	}
+	if (config_lookup_string(&cfg, "select_bg", &str)) {
+		colors[SchemeSelect][ColBg] = str;
+	}
+	if (config_lookup_string(&cfg, "select_fg", &str)) {
+		colors[SchemeSelect][ColFg] = str;
+	}
+	if (config_lookup_string(&cfg, "desc_bg", &str)) {
+		colors[SchemeDesc][ColBg] = str;
+	}
+	if (config_lookup_string(&cfg, "desc_fg", &str)) {
+		colors[SchemeDesc][ColFg] = str;
+	}
+	if (config_lookup_string(&cfg, "window_id", &str)) {
+		embed = str;
+	}
+	
 	pinentry_init("pinentry-dmenu");
 	pinentry_parse_opts(argc, argv);
 	
 	if (pinentry_loop()) {
 		return 1;
 	}
+
+	config_destroy(&cfg);
 	
 	return 0;
 }
