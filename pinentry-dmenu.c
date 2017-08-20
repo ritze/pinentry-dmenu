@@ -583,58 +583,67 @@ main(int argc, char *argv[]) {
 	/* Read the file. If there is an error, report it and exit. */
 	if (config_read_file(&cfg, path)) {
 		if (config_lookup_string(&cfg, "asterisk", &str)) {
+			asterisk = str;
+		}
+		if (config_lookup_bool(&cfg, "buttom", &bval)) {
+			topbar = !bval;
+		}
+		if (config_lookup_int(&cfg, "min_password_length", &val)) {
+			minpwlen = val;
+		}
+		if (config_lookup_int(&cfg, "monitor", &val)) {
+			mon = val;
+		}
+		if (config_lookup_string(&cfg, "prompt", &str)) {
+			prompt = str;
+		}
+		if (config_lookup_string(&cfg, "font", &str)) {
+			fonts[0] = str;
+		}
+		if (config_lookup_string(&cfg, "prompt_bg", &str)) {
+			colors[SchemePrompt][ColBg] = str;
+		}
+		if (config_lookup_string(&cfg, "prompt_fg", &str)) {
+			colors[SchemePrompt][ColFg] = str;
+		}
+		if (config_lookup_string(&cfg, "normal_bg", &str)) {
+			colors[SchemeNormal][ColBg] = str;
+		}
+		if (config_lookup_string(&cfg, "normal_fg", &str)) {
+			colors[SchemeNormal][ColFg] = str;
+		}
+		if (config_lookup_string(&cfg, "select_bg", &str)) {
+			colors[SchemeSelect][ColBg] = str;
+		}
+		if (config_lookup_string(&cfg, "select_fg", &str)) {
+			colors[SchemeSelect][ColFg] = str;
+		}
+		if (config_lookup_string(&cfg, "desc_bg", &str)) {
+			colors[SchemeDesc][ColBg] = str;
+		}
+		if (config_lookup_string(&cfg, "desc_fg", &str)) {
+			colors[SchemeDesc][ColFg] = str;
+		}
+		if (config_lookup_bool(&cfg, "windowed", &bval)) {
+			windowed = bval;
+		}
+	} else if (str = config_error_file(&cfg)) {
+		fprintf(stderr, "%s:%d: %s\n", config_error_file(&cfg),
 		        config_error_line(&cfg), config_error_text(&cfg));
-		config_destroy(&cfg);
 		return(EXIT_FAILURE);
+	} else {
+		printf("No config file found. Use defaults.\n");
 	}
 
-	if (config_lookup_string(&cfg, "asterisk", &str)) {
-		asterisk = str;
-	}
-	if (config_lookup_bool(&cfg, "buttom", &bval)) {
-		topbar = !bval;
-	}
-	if (config_lookup_int(&cfg, "min_password_length", &val)) {
-		minpwlen = val;
-	}
-	if (config_lookup_int(&cfg, "monitor", &val)) {
-		mon = val;
-	}
-	if (config_lookup_string(&cfg, "prompt", &str)) {
-		prompt = str;
+	for (i = 0; i < argc; i++) {
+		if (!strcmp(argv[i], "-W") || !strcmp(argv[i], "--parent-wid")) {
+			if (windowed) {
+				embed = argv[++i];
+				printf("-> embed: %s\n", embed);
+			}
+		}
 	}
 
-	if (config_lookup_string(&cfg, "font", &str)) {
-		fonts[0] = str;
-	}
-	if (config_lookup_string(&cfg, "prompt_bg", &str)) {
-		colors[SchemePrompt][ColBg] = str;
-	}
-	if (config_lookup_string(&cfg, "prompt_fg", &str)) {
-		colors[SchemePrompt][ColFg] = str;
-	}
-	if (config_lookup_string(&cfg, "normal_bg", &str)) {
-		colors[SchemeNormal][ColBg] = str;
-	}
-	if (config_lookup_string(&cfg, "normal_fg", &str)) {
-		colors[SchemeNormal][ColFg] = str;
-	}
-	if (config_lookup_string(&cfg, "select_bg", &str)) {
-		colors[SchemeSelect][ColBg] = str;
-	}
-	if (config_lookup_string(&cfg, "select_fg", &str)) {
-		colors[SchemeSelect][ColFg] = str;
-	}
-	if (config_lookup_string(&cfg, "desc_bg", &str)) {
-		colors[SchemeDesc][ColBg] = str;
-	}
-	if (config_lookup_string(&cfg, "desc_fg", &str)) {
-		colors[SchemeDesc][ColFg] = str;
-	}
-	if (config_lookup_string(&cfg, "window_id", &str)) {
-		embed = str;
-	}
-	
 	pinentry_init("pinentry-dmenu");
 	pinentry_parse_opts(argc, argv);
 	
