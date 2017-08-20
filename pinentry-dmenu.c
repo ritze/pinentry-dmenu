@@ -74,7 +74,6 @@ drawitem(const char* text, Bool sel, int x, int y, int w) {
 	return drw_text(drw, x, y, w, bh, lrpad / 2, text, 0);
 }
 
-// XXX: Delete this function
 static void
 grabfocus(void) {
 	Window focuswin;
