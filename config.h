@@ -2,6 +2,7 @@
 /* Default settings; can be overriden by command line. */
 
 static int topbar = 1;
+static int embedded = 0;
 static int minpwlen = 32;
 static const char *fonts[] = {
 	"monospace:size=10"

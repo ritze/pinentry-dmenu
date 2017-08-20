@@ -43,7 +43,7 @@ enum { Nothing, Yes, No }; /* confirm dialog */
 
 static char text[BUFSIZ] = "";
 //static char *text;
-static char *embed;
+static char *winid;
 static int bh, mw, mh;
 static int sel;
 static int promptw, ppromptw, pdescw;
@@ -96,7 +96,7 @@ static void
 grabkeyboard(void) {
 	int i;
 
-	if (embed) {
+	if (winid) {
 		return;
 	}
 	/* try to grab keyboard,
@@ -305,7 +305,7 @@ setup(void) {
 	                XNClientWindow, win, XNFocusWindow, win, NULL);
 	XMapRaised(dpy, win);
 
-	if (embed) {
+	if (winid) {
 		XSelectInput(dpy, parentwin, FocusChangeMask);
 
 		if (XQueryTree(dpy, parentwin, &dw, &w, &dws, &du) && dws) {
@@ -532,7 +532,7 @@ cmdhandler(pinentry_t received_pinentry) {
 	}
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	if (!embed || !(parentwin = strtol(embed, NULL, 0))) {
+	if (!winid || !(parentwin = strtol(winid, NULL, 0))) {
 		parentwin = root;
 	}
 	if (!XGetWindowAttributes(dpy, parentwin, &wa)) {
@@ -624,8 +624,8 @@ main(int argc, char *argv[]) {
 		if (config_lookup_string(&cfg, "desc_fg", &str)) {
 			colors[SchemeDesc][ColFg] = str;
 		}
-		if (config_lookup_bool(&cfg, "windowed", &bval)) {
-			windowed = bval;
+		if (config_lookup_bool(&cfg, "embedded", &bval)) {
+			embedded = bval;
 		}
 	} else if (str = config_error_file(&cfg)) {
 		fprintf(stderr, "%s:%d: %s\n", config_error_file(&cfg),
@@ -637,9 +637,8 @@ main(int argc, char *argv[]) {
 
 	for (i = 0; i < argc; i++) {
 		if (!strcmp(argv[i], "-W") || !strcmp(argv[i], "--parent-wid")) {
-			if (windowed) {
-				embed = argv[++i];
-				printf("-> embed: %s\n", embed);
+			if (embedded) {
+				winid = argv[++i];
 			}
 		}
 	}
