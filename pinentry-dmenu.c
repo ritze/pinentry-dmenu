@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <pwd.h>
 #include <time.h>
 #include <unistd.h>
 
@@ -25,13 +26,13 @@
 #include "pinentry/memory.h"
 
 /* macros */
+#define CONFIG "/.gnupg/pinentry-dmenu.conf"
 #define INTERSECT(x,y,w,h,r)  (MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
                             && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
 #define LENGTH(X)             (sizeof X / sizeof X[0])
 #define TEXTW(X)              (drw_fontset_getwidth(drw, (X)) + lrpad)
 #define MINDESCLEN 8
 
-#define CONFIGPATH $HOME/.gnupg/pinentry-dmenu.conf
 
 /* enums */
 enum { SchemePrompt, SchemeNormal, SchemeSelect, SchemeDesc, SchemeLast }; /* color schemes */
@@ -564,8 +565,14 @@ pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
 int
 main(int argc, char *argv[]) {
 	Bool bval;
-	int val;
+	int i, val;
 	const char *str;
+	char path[PATH_MAX];
+	struct passwd *pw = getpwuid(getuid());
+
+	i = strlen(pw->pw_dir);
+	strcpy(path, pw->pw_dir);
+	strcpy(&path[i], CONFIG);
 
 	config_t cfg;
 	config_setting_t *setting;
@@ -573,8 +580,8 @@ main(int argc, char *argv[]) {
 	config_init(&cfg);
 
 	/* Read the file. If there is an error, report it and exit. */
-	if (!config_read_file(&cfg, "example.cfg")) {
-		fprintf(stderr, "%s:%d - %s\n", config_error_file(&cfg),
+	if (config_read_file(&cfg, path)) {
+		if (config_lookup_string(&cfg, "asterisk", &str)) {
 		        config_error_line(&cfg), config_error_text(&cfg));
 		config_destroy(&cfg);
 		return(EXIT_FAILURE);
