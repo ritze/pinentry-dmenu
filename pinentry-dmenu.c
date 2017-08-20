@@ -143,7 +143,6 @@ drawwin(void) {
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
 	int leftinput;
-	char* desc;
 	char* censort = ecalloc(1, asterlen * sizeof(text));
 	
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
@@ -176,16 +175,16 @@ drawwin(void) {
 				pbw = MAX(pbw, pdescw);
 				pbw = MIN(pbw, pb);
 				pb = mw - pbw;
-				desc = pinentry->description;
 
 				for (i = 0; i < pdesclen; i++) {
-					if (desc[i] == '\n') {
-						desc[i] = ' ';
+					if (pinentry->description[i] == '\n') {
+						pinentry->description[i] = ' ';
 					}
 				}
 
 				drw_setscheme(drw, scheme[SchemeDesc]);
-				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, desc, 0);
+				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, pinentry->description,
+				         0);
 			} else {
 				pbw = 0;
 			}
