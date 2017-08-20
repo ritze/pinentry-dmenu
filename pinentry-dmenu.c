@@ -150,18 +150,18 @@ drawwin(void) {
 	drw_setscheme(drw, scheme[SchemeNormal]);
 	drw_rect(drw, 0, 0, mw, mh, 1, 1);
 
-	if (prompt && *prompt) {
+	if (prompt) {
 		drw_setscheme(drw, scheme[SchemePrompt]);
 		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
 	}
 
-	if (pinentry->prompt && *pinentry->prompt) {
+	if (pinentry->prompt) {
 		drw_setscheme(drw, scheme[SchemePrompt]);
 		drw_text(drw, x, 0, ppromptw, bh, lrpad / 2, pinentry->prompt, 0);
 		x += ppromptw;
 	}
 
-	if (pinentry->description && *pinentry->description) {
+	if (pinentry->description) {
 		pb = mw - x;
 		pdesclen = strlen(pinentry->description);
 		
@@ -221,8 +221,6 @@ static void
 setup(void) {
 	int x, y, i = 0;
 	unsigned int du;
-	const char* pprompt = pinentry->prompt;
-	const char* pdesc = pinentry->description;
 	XSetWindowAttributes swa;
 	XIM xim;
 	Window w, dw, *dws;
@@ -296,9 +294,9 @@ setup(void) {
 		mw = wa.width;
 	}
 
-	promptw = (prompt && *prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
-	ppromptw = (pprompt && *pprompt) ? TEXTW(pprompt) : 0;
-	pdescw = (pdesc && *pdesc) ? TEXTW(pdesc) : 0;
+	promptw = (prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+	ppromptw = (pinentry->prompt) ? TEXTW(pinentry->prompt) : 0;
+	pdescw = (pinentry->description) ? TEXTW(pinentry->description) : 0;
 
 	/* create menu window */
 	swa.override_redirect = True;
