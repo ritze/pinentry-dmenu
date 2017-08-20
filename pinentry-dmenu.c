@@ -177,6 +177,13 @@ drawwin(void) {
 				pbw = MIN(pbw, pb);
 				pb = mw - pbw;
 				desc = pinentry->description;
+
+				for (i = 0; i < pdesclen; i++) {
+					if (desc[i] == '\n') {
+						desc[i] = ' ';
+					}
+				}
+
 				drw_setscheme(drw, scheme[SchemeDesc]);
 				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, desc, 0);
 			} else {
