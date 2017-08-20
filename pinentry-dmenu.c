@@ -43,7 +43,6 @@ enum { Nothing, Yes, No }; /* confirm dialog */
 
 static char text[BUFSIZ] = "";
 //static char *text;
-static char *winid;
 static int bh, mw, mh;
 static int sel;
 static int promptw, ppromptw, pdescw;
@@ -95,7 +94,7 @@ static void
 grabkeyboard(void) {
 	int i;
 
-	if (winid) {
+	if (embedded) {
 		return;
 	}
 	/* try to grab keyboard,
@@ -315,7 +314,7 @@ setup(void) {
 	                XNClientWindow, win, XNFocusWindow, win, NULL);
 	XMapRaised(dpy, win);
 
-	if (winid) {
+	if (embedded) {
 		XSelectInput(dpy, parentwin, FocusChangeMask);
 
 		if (XQueryTree(dpy, parentwin, &dw, &w, &dws, &du) && dws) {
@@ -542,9 +541,8 @@ cmdhandler(pinentry_t received_pinentry) {
 	}
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	if (!winid || !(parentwin = strtol(winid, NULL, 0))) {
-		parentwin = root;
-	}
+	embedded = (pinentry->parent_wid) ? embedded : 0;
+	parentwin = (embedded) ? pinentry->parent_wid : root;
 	if (!XGetWindowAttributes(dpy, parentwin, &wa)) {
 		die("could not get embedding window attributes: 0x%lx", parentwin);
 	}
@@ -567,8 +565,6 @@ cmdhandler(pinentry_t received_pinentry) {
 	} else {
 		return confirm();
 	}
-	
-	return -1;
 }
 
 pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
@@ -640,14 +636,6 @@ main(int argc, char *argv[]) {
 		return(EXIT_FAILURE);
 	} else {
 		printf("No config file found. Use defaults.\n");
-	}
-
-	for (i = 0; i < argc; i++) {
-		if (!strcmp(argv[i], "-W") || !strcmp(argv[i], "--parent-wid")) {
-			if (embedded) {
-				winid = argv[++i];
-			}
-		}
 	}
 
 	pinentry_init("pinentry-dmenu");
