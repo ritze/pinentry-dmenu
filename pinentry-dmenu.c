@@ -139,9 +139,10 @@ insert(const char *str, ssize_t n) {
 static void
 drawwin(void) {
 	unsigned int curpos;
-	int x = 0, pb = 0, pbw = 0, i;
+	int x = 0, pb, pbw = 0, i;
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
+	int leftinput;
 	char* desc;
 	char* censort = ecalloc(1, asterlen * sizeof(text));
 	
@@ -179,10 +180,8 @@ drawwin(void) {
 				drw_setscheme(drw, scheme[SchemeDesc]);
 				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, desc, 0);
 			} else {
-				pb = 0;
+				pbw = 0;
 			}
-		} else {
-			pb = 0;
 		}
 	}
 
@@ -195,9 +194,15 @@ drawwin(void) {
 		}
 
 		censort[i+1] = '\n';
-		drw_text(drw, x, 0, mw - x - pbw, bh, lrpad / 2, censort, 0);
+		leftinput = mw - x - pbw;
+		drw_text(drw, x, 0, leftinput, bh, lrpad / 2, censort, 0);
 		drw_font_getexts(drw->fonts, censort, cursor * asterlen, &curpos, NULL);
 		free(censort);
+
+		if ((curpos += lrpad / 2 - 1) < leftinput) {
+			drw_setscheme(drw, scheme[SchemeNormal]);
+			drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
+		}
 	} else {
 		x += TEXTW(" ");
 		x = drawitem("No", (sel == No), x, 0, TEXTW("No"));
