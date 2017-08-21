@@ -25,7 +25,6 @@
 #include "pinentry/pinentry.h"
 #include "pinentry/memory.h"
 
-/* macros */
 #define CONFIG "/.gnupg/pinentry-dmenu.conf"
 #define INTERSECT(x, y, w, h, r) \
 		(MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
@@ -35,18 +34,18 @@
 #define MINDESCLEN 8
 
 
-/* enums */
-enum { SchemePrompt, SchemeNormal, SchemeSelect, SchemeDesc, SchemeLast }; /* color schemes */
-enum { WinPin, WinConfirm }; /* window modes */
-enum { Ok, NotOk, Cancel }; /* return status */
-enum { Nothing, Yes, No }; /* confirm dialog */
+enum { SchemePrompt, SchemeNormal, SchemeSelect, SchemeDesc, SchemeLast };
+enum { WinPin, WinConfirm };
+enum { Ok, NotOk, Cancel };
+enum { Nothing, Yes, No };
 
 static char text[BUFSIZ] = "";
 //static char *text;
 static int bh, mw, mh;
 static int sel;
 static int promptw, ppromptw, pdescw;
-static int lrpad; /* sum of left and right padding */
+/* Sum of left and right padding */
+static int lrpad;
 static size_t cursor;
 static int mon = -1, screen;
 
@@ -97,7 +96,7 @@ grabkeyboard(void) {
 	if (embedded) {
 		return;
 	}
-	/* try to grab keyboard,
+	/* Try to grab keyboard,
 	 * we may have to wait for another process to ungrab */
 	for (i = 0; i < 1000; i++) {
 		if (XGrabKeyboard(dpy, DefaultRootWindow(dpy), True, GrabModeAsync,
@@ -114,8 +113,8 @@ static size_t
 nextrune(int cursor, int inc) {
 	ssize_t n;
 
-	/* return location of next utf8 rune in the given direction (+1 or -1) */
 	for (n = cursor + inc; n + inc >= 0 && (text[n] & 0xc0) == 0x80; n += inc);
+	/* Return location of next utf8 rune in the given direction (+1 or -1) */
 	
 	return n;
 }
@@ -126,7 +125,7 @@ insert(const char *str, ssize_t n) {
 		return;
 	}
 	
-	/* move existing text out of the way, insert new text, and update cursor */
+	/* Move existing text out of the way, insert new text, and update cursor */
 	memmove(&text[cursor + n], &text[cursor], sizeof text - cursor - MAX(n, 0));
 
 	if (n > 0) {
@@ -269,7 +268,7 @@ setup(void) {
 				}
 			}
 		}
-		/* no focused window is on screen, so use pointer location instead */
+		/* No focused window is on screen, so use pointer location instead */
 		if (mon < 0 && !area
 		    && XQueryPointer(dpy, root, &dw, &dw, &x, &y, &di, &di, &du)) {
 			for (i = 0; i < n; i++) {
@@ -298,7 +297,7 @@ setup(void) {
 	ppromptw = (pinentry->prompt) ? TEXTW(pinentry->prompt) : 0;
 	pdescw = (pinentry->description) ? TEXTW(pinentry->description) : 0;
 
-	/* create menu window */
+	/* Create menu window */
 	swa.override_redirect = True;
 	swa.background_pixel = scheme[SchemePrompt][ColBg].pixel;
 	swa.event_mask = ExposureMask | KeyPressMask | VisibilityChangeMask;
@@ -393,7 +392,7 @@ keypress(XKeyEvent *ev) {
 				return 0;
 			}
 			cursor = nextrune(cursor, +1);
-			/* fallthrough */
+			/* Fallthrough */
 		case XK_BackSpace:
 			if (cursor == 0) {
 				return 0;
@@ -403,8 +402,8 @@ keypress(XKeyEvent *ev) {
 		case XK_Escape:
 			pinentry->canceled = 1;
 			return 1;
-			/*cleanup();
-			exit(1);*/
+			//Cleanup();
+			//exit(1);
 			break;
 		case XK_Left:
 			if (cursor > 0) {
@@ -446,9 +445,10 @@ paste(void) {
 void
 run(void) {
 	XEvent ev;
-	while(!XNextEvent(dpy, &ev)) {
+	while (!XNextEvent(dpy, &ev)) {
 		if (XFilterEvent(&ev, win)) {
-			continue; /* what is this I don't even */
+			/* What is this I don't even */
+			continue;
 		}
 		switch(ev.type) {
 		case Expose:
