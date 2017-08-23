@@ -1,7 +1,8 @@
 include ../config.mk
 
-SRC = util.c pinentry.c argparse.c password-cache.c
+SRC = util.c pinentry.c argparse.c password-cache.c secmem.c
 OBJ = ${SRC:.c=.o}
+CFLAGS += -DHAVE_MLOCK
 
 all: pinentry
 
