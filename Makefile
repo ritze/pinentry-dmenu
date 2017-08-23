@@ -29,7 +29,7 @@ pinentry:
 
 pinentry-dmenu: pinentry pinentry-dmenu.o drw.o util.o
 	@echo CC -o $@
-	@${CC} -o $@ pinentry-dmenu.o drw.o util.o pinentry/pinentry.o pinentry/util.o pinentry/password-cache.o pinentry/argparse.o pinentry/secmem.o ${LDFLAGS} -lassuan -lgpgme -lgpg-error
+	@${CC} -o $@ pinentry-dmenu.o drw.o util.o pinentry/pinentry.o pinentry/util.o pinentry/password-cache.o pinentry/argparse.o pinentry/secmem.o ${LDFLAGS} -lassuan -lgpgme -lgpg-error -lconfig
 
 clean:
 	@echo cleaning
