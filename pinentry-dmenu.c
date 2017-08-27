@@ -39,8 +39,6 @@ enum { WinPin, WinConfirm };
 enum { Ok, NotOk, Cancel };
 enum { Nothing, Yes, No };
 
-static char text[BUFSIZ] = "";
-//static char *text;
 static int bh, mw, mh;
 static int sel;
 static int promptw, ppromptw, pdescw;
@@ -96,6 +94,7 @@ grabkeyboard(void) {
 	if (embedded) {
 		return;
 	}
+
 	/* Try to grab keyboard,
 	 * we may have to wait for another process to ungrab */
 	for (i = 0; i < 1000; i++) {
@@ -113,25 +112,29 @@ static size_t
 nextrune(int cursor, int inc) {
 	ssize_t n;
 
-	for (n = cursor + inc; n + inc >= 0 && (text[n] & 0xc0) == 0x80; n += inc);
 	/* Return location of next utf8 rune in the given direction (+1 or -1) */
+	for (n = cursor + inc;
+	     n + inc >= 0 && (pinentry->pin[n] & 0xc0) == 0x80;
+	     n += inc);
 	
 	return n;
 }
 
 static void
 insert(const char *str, ssize_t n) {
-	if (strlen(text) + n > sizeof text - 1) {
-		return;
+	if (strlen(pinentry->pin) + n > pinentry->pin_len - 1) {
+		if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
+			printf("Error: Couldn't allocate secure memory\n");
+			return;
+		}
 	}
-	
-	/* Move existing text out of the way, insert new text, and update cursor */
-	memmove(&text[cursor + n], &text[cursor], sizeof text - cursor - MAX(n, 0));
 
 	if (n > 0) {
-		memcpy(&text[cursor], str, n);
+		memcpy(&pinentry->pin[cursor], str, n);
 	}
+
 	cursor += n;
+	pinentry->pin[cursor] = '\0';
 }
 
 static void
@@ -141,7 +144,7 @@ drawwin(void) {
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
 	int leftinput;
-	char* censort = ecalloc(1, asterlen * sizeof(text));
+	char* censort = ecalloc(1, asterlen * pinentry->pin_len);
 	
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
 	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
@@ -193,7 +196,7 @@ drawwin(void) {
 	drw_setscheme(drw, scheme[SchemeNormal]);
 
 	if (winmode == WinPin) {
-		for (i = 0; i < asterlen * strlen(text); i += asterlen) {
+		for (i = 0; i < asterlen * strlen(pinentry->pin); i += asterlen) {
 			memcpy(&censort[i], asterisk, asterlen);
 		}
 
@@ -236,7 +239,7 @@ setup(void) {
 	scheme[SchemeSelect] = drw_scm_create(drw, colors[SchemeSelect], 2);
 	scheme[SchemeDesc]   = drw_scm_create(drw, colors[SchemeDesc],   2);
 
-	text[0] = '\0';
+	pinentry->pin[0] = '\0';
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 
@@ -251,13 +254,13 @@ setup(void) {
 		if (mon >= 0 && mon < n) {
 			i = mon;
 		} else if (w != root && w != PointerRoot && w != None) {
-			/* find top-level window containing current input focus */
+			/* Find top-level window containing current input focus */
 			do {
 				if (XQueryTree(dpy, (pw = w), &dw, &w, &dws, &du) && dws) {
 					XFree(dws);
 				}
 			} while (w != root && w != pw);
-			/* find xinerama screen with which the window intersects most */
+			/* Find xinerama screen with which the window intersects most */
 			if (XGetWindowAttributes(dpy, pw, &wa)) {
 				for (j = 0; j < n; j++) {
 					a = INTERSECT(wa.x, wa.y, wa.width, wa.height, info[j]);
@@ -382,13 +385,8 @@ keypress(XKeyEvent *ev) {
 		}
 	} else {
 		switch(ksym) {
-		default:
-			if (!iscntrl(*buf)) {
-				insert(buf, len);
-			}
-			break;
 		case XK_Delete:
-			if (text[cursor] == '\0') {
+			if (pinentry->pin[cursor] == '\0') {
 				return 0;
 			}
 			cursor = nextrune(cursor, +1);
@@ -411,7 +409,7 @@ keypress(XKeyEvent *ev) {
 			}
 			break;
 		case XK_Right:
-			if (text[cursor] != '\0') {
+			if (pinentry->pin[cursor] != '\0') {
 				cursor = nextrune(cursor, +1);
 			}
 			break;
@@ -419,6 +417,10 @@ keypress(XKeyEvent *ev) {
 		case XK_KP_Enter:
 			return 1;
 			break;
+		default:
+			if (!iscntrl(*buf)) {
+				insert(buf, len);
+			}
 		}
 	}
 
@@ -435,7 +437,7 @@ paste(void) {
 	Atom da;
 
 	/* We have been given the current selection, now insert it into input */
-	XGetWindowProperty(dpy, win, utf8, 0, (sizeof text / 4) + 1, False,
+	XGetWindowProperty(dpy, win, utf8, 0, (sizeof pinentry->pin / 4) + 1, False,
 	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p);
 	insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t) strlen(p));
 	XFree(p);
@@ -492,26 +494,15 @@ catchsig(int sig) {
 
 static int
 password(void) {
-	char *buf;
-//	text = secmem_malloc(BUFSIZ);
-
 	winmode = WinPin;
 	promptwin();
-	
-	if (pinentry->canceled) {
-//		secmem_free(text);
-		return -1;
-	}
-//printf("text = %s\n", text);
-buf = secmem_malloc(strlen(text));
-strcpy(buf, text);
 
-//	pinentry_setbuffer_use(pinentry, text, 0);
-pinentry_setbuffer_use(pinentry, buf, 0);
-//secmem_free(buf);
-//	secmem_free(text);
-	
-	return 1;
+	// TODO: Add repeat function
+	//if (pe->repeat_passphrase) {
+	//	pe->repeat_okay = 1;
+	//}
+
+	return (pinentry->canceled) ? -1 : 1;
 }
 
 static int
