@@ -47,6 +47,8 @@ static int lrpad;
 static size_t cursor;
 static int mon = -1, screen;
 
+static char* pin;
+
 static Atom clip, utf8;
 static Display *dpy;
 static Window root, parentwin, win;
@@ -114,7 +116,7 @@ nextrune(int cursor, int inc) {
 
 	/* Return location of next utf8 rune in the given direction (+1 or -1) */
 	for (n = cursor + inc;
-	     n + inc >= 0 && (pinentry->pin[n] & 0xc0) == 0x80;
+	     n + inc >= 0 && (pin[n] & 0xc0) == 0x80;
 	     n += inc);
 	
 	return n;
@@ -122,19 +124,25 @@ nextrune(int cursor, int inc) {
 
 static void
 insert(const char *str, ssize_t n) {
-	if (strlen(pinentry->pin) + n > pinentry->pin_len - 1) {
+	int repeat;
+
+	if (strlen(pin) + n > pinentry->pin_len - 1) {
+		repeat = (pin == pinentry->pin) ? 0 : 1;
+
 		if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
 			printf("Error: Couldn't allocate secure memory\n");
 			return;
 		}
+
+		pin = (repeat) ? pinentry->pin : pinentry->repeat_passphrase;
 	}
 
 	if (n > 0) {
-		memcpy(&pinentry->pin[cursor], str, n);
+		memcpy(&pin[cursor], str, n);
 	}
 
 	cursor += n;
-	pinentry->pin[cursor] = '\0';
+	pin[cursor] = '\0';
 }
 
 static void
@@ -196,7 +204,7 @@ drawwin(void) {
 	drw_setscheme(drw, scheme[SchemeNormal]);
 
 	if (winmode == WinPin) {
-		for (i = 0; i < asterlen * strlen(pinentry->pin); i += asterlen) {
+		for (i = 0; i < asterlen * strlen(pin); i += asterlen) {
 			memcpy(&censort[i], asterisk, asterlen);
 		}
 
@@ -220,6 +228,13 @@ drawwin(void) {
 }
 
 static void
+setup_pin(char* pinlink) {
+	pin = pinlink;
+	pin[0] = '\0';
+	cursor = 0;
+}
+
+static void
 setup(void) {
 	int x, y, i = 0;
 	unsigned int du;
@@ -239,7 +254,6 @@ setup(void) {
 	scheme[SchemeSelect] = drw_scm_create(drw, colors[SchemeSelect], 2);
 	scheme[SchemeDesc]   = drw_scm_create(drw, colors[SchemeDesc],   2);
 
-	pinentry->pin[0] = '\0';
 	clip = XInternAtom(dpy, "CLIPBOARD",   False);
 	utf8 = XInternAtom(dpy, "UTF8_STRING", False);
 
@@ -328,7 +342,6 @@ setup(void) {
 	}
 
 	drw_resize(drw, mw, mh);
-	drawwin();
 }
 
 static void
@@ -386,7 +399,7 @@ keypress(XKeyEvent *ev) {
 	} else {
 		switch(ksym) {
 		case XK_Delete:
-			if (pinentry->pin[cursor] == '\0') {
+			if (pin[cursor] == '\0') {
 				return 0;
 			}
 			cursor = nextrune(cursor, +1);
@@ -409,7 +422,7 @@ keypress(XKeyEvent *ev) {
 			}
 			break;
 		case XK_Right:
-			if (pinentry->pin[cursor] != '\0') {
+			if (pin[cursor] != '\0') {
 				cursor = nextrune(cursor, +1);
 			}
 			break;
@@ -437,7 +450,7 @@ paste(void) {
 	Atom da;
 
 	/* We have been given the current selection, now insert it into input */
-	XGetWindowProperty(dpy, win, utf8, 0, (sizeof pinentry->pin / 4) + 1, False,
+	XGetWindowProperty(dpy, win, utf8, 0, (sizeof pin / 4) + 1, False,
 	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p);
 	insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t) strlen(p));
 	XFree(p);
@@ -447,6 +460,9 @@ paste(void) {
 void
 run(void) {
 	XEvent ev;
+
+	drawwin();
+
 	while (!XNextEvent(dpy, &ev)) {
 		if (XFilterEvent(&ev, win)) {
 			/* What is this I don't even */
@@ -477,14 +493,6 @@ run(void) {
 	}
 }
 
-void
-promptwin(void) {
-	grabkeyboard();
-	setup();
-	run();
-	cleanup();
-}
-
 static void
 catchsig(int sig) {
 	if (sig == SIGALRM) {
@@ -495,12 +503,22 @@ catchsig(int sig) {
 static int
 password(void) {
 	winmode = WinPin;
-	promptwin();
 
-	// TODO: Add repeat function
-	//if (pe->repeat_passphrase) {
-	//	pe->repeat_okay = 1;
-	//}
+	setup_pin(pinentry->pin);
+	run();
+
+	if (pinentry->repeat_passphrase) {
+		setup_pin(pinentry->repeat_passphrase);
+		// TODO: Add repeat text
+		run();
+
+		if (strcmp(pinentry->pin, pinentry->repeat_passphrase)) {
+			pinentry->repeat_okay = 0;
+			return 0;
+		}
+
+		pinentry->repeat_okay = 1;
+	}
 
 	return (pinentry->canceled) ? -1 : 1;
 }
@@ -509,7 +527,8 @@ static int
 confirm(void) {
 	winmode = WinConfirm;
 	sel = Nothing;
-	promptwin();
+
+	run();
 	
 	return sel != No;
 }
@@ -518,8 +537,8 @@ static int
 cmdhandler(pinentry_t received_pinentry) {
 	struct sigaction sa;
 	XWindowAttributes wa;
+	int ret;
 	
-	cursor = 0;
 	pinentry = received_pinentry;
 
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale()) {
@@ -549,11 +568,18 @@ cmdhandler(pinentry_t received_pinentry) {
 		alarm(pinentry->timeout);
 	}
 
+	grabkeyboard();
+	setup();
+
 	if (pinentry->pin) {
-		return password();
+		ret = password();
 	} else {
-		return confirm();
+		ret = confirm();
 	}
+
+	cleanup();
+
+	return ret;
 }
 
 pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
