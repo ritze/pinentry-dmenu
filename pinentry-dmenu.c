@@ -212,7 +212,6 @@ drawwin(void) {
 		leftinput = mw - x - pbw;
 		drw_text(drw, x, 0, leftinput, bh, lrpad / 2, censort, 0);
 		drw_font_getexts(drw->fonts, censort, cursor * asterlen, &curpos, NULL);
-		free(censort);
 
 		if ((curpos += lrpad / 2 - 1) < leftinput) {
 			drw_setscheme(drw, scheme[SchemeNormal]);
@@ -224,6 +223,7 @@ drawwin(void) {
 		x = drawitem("Yes", (sel == Yes), x, 0, TEXTW("Yes"));
 	}
 
+	free(censort);
 	drw_map(drw, win, 0, 0, mw, mh);
 }
 
