@@ -385,6 +385,12 @@ keypress(XKeyEvent *ev) {
 		case XK_N:
 			sel = No;
 			return 1;
+		case XK_c:
+			if (ev->state == ControlMask) {
+				pinentry->canceled = 1;
+				sel = No;
+				return 1;
+			}
 		case XK_Escape:
 			pinentry->canceled = 1;
 			sel = No;
@@ -410,6 +416,11 @@ keypress(XKeyEvent *ev) {
 			}
 			insert(NULL, nextrune(cursor, -1) - cursor);
 			break;
+		case XK_c:
+			if (ev->state == ControlMask) {
+				pinentry->canceled = 1;
+				return 1;
+			}
 		case XK_Escape:
 			pinentry->canceled = 1;
 			return 1;
