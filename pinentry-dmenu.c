@@ -589,14 +589,25 @@ main(int argc, char *argv[]) {
 	Bool bval;
 	int i, val;
 	const char *str;
+	struct passwd *pw;
 	char path[PATH_MAX];
-	struct passwd *pw = getpwuid(getuid());
+	char *sudo_uid = getenv("SUDO_UID");
+	char *home = getenv("HOME");
 	config_t cfg;
 
+	// This is a little workaround to get the home dir even if the user used
+	// sudo or logged in as root
+	if (sudo_uid) {
+		i = atoi(sudo_uid);
+		pw = getpwuid(i);
+		home = pw->pw_dir;
+	}
+
 	config_init(&cfg);
-	i = strlen(pw->pw_dir);
-	strcpy(path, pw->pw_dir);
+	i = strlen(home);
+	strcpy(path, home);
 	strcpy(&path[i], CONFIG);
+	endpwent();
 
 	/* Read the file. If there is an error, report it and exit. */
 	if (config_read_file(&cfg, path)) {
