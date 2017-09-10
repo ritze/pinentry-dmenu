@@ -29,7 +29,7 @@
 #define INTERSECT(x, y, w, h, r) \
 		(MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
 		 && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
-#define LENGTH(X) (sizeof X / sizeof X[0])
+#define LENGTH(X) (sizeof(X) / sizeof(X[0]))
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
 #define MINDESCLEN 8
 
@@ -461,7 +461,7 @@ paste(void) {
 	Atom da;
 
 	/* We have been given the current selection, now insert it into input */
-	XGetWindowProperty(dpy, win, utf8, 0, (sizeof pin / 4) + 1, False,
+	XGetWindowProperty(dpy, win, utf8, 0, (sizeof(pin) / 4) + 1, False,
 	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p);
 	insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t) strlen(p));
 	XFree(p);
