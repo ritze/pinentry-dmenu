@@ -403,6 +403,10 @@ static int
 keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
 	if (ev->state & ControlMask) {
 		switch(ksym) {
+		case XK_v:
+			XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
+			                  utf8, utf8, win, CurrentTime);
+			return 0;
 		case XK_c:
 			pinentry->canceled = 1;
 			return 1;
