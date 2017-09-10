@@ -1,6 +1,5 @@
 pinentry-dmenu
 ==============
 
-I didn't like how long it takes to load pinentry-gtk/qt and pinentry-curses/tty is not always the option, so I duct-taped pinentry and dmenu together.
+This program is a fork from [spine](https://gitgud.io/zavok/spine.git).
 
-Right now it's a real mess, so don't expect much, but I w-will work on it some more I promise.
