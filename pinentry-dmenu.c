@@ -152,7 +152,7 @@ drawwin(void) {
 	size_t asterlen = strlen(asterisk);
 	size_t pdesclen;
 	int leftinput;
-	char* censort = ecalloc(1, asterlen * pinentry->pin_len);
+	char* censort;
 	
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
 	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
@@ -204,6 +204,8 @@ drawwin(void) {
 	drw_setscheme(drw, scheme[SchemeNormal]);
 
 	if (winmode == WinPin) {
+		censort = ecalloc(1, asterlen * pinentry->pin_len);
+
 		for (i = 0; i < asterlen * strlen(pin); i += asterlen) {
 			memcpy(&censort[i], asterisk, asterlen);
 		}
@@ -217,13 +219,14 @@ drawwin(void) {
 			drw_setscheme(drw, scheme[SchemeNormal]);
 			drw_rect(drw, x + curpos, 2, 2, bh - 4, 1, 0);
 		}
+
+		free(censort);
 	} else {
 		x += TEXTW(" ");
 		x = drawitem("No", (sel == No), x, 0, TEXTW("No"));
 		x = drawitem("Yes", (sel == Yes), x, 0, TEXTW("Yes"));
 	}
 
-	free(censort);
 	drw_map(drw, win, 0, 0, mw, mh);
 }
 
