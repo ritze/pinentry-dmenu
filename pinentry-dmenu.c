@@ -357,20 +357,19 @@ cleanup(void) {
 }
 
 static int
-keypress(XKeyEvent *ev) {
-	char buf[32];
-	int len;
-
-	KeySym ksym = NoSymbol;
-	Status status;
-	len = XmbLookupString(xic, ev, buf, sizeof buf, &ksym, &status);
-	
-	if (status == XBufferOverflow) {
-		return 0;
+keypress_confirm(XKeyEvent *ev, KeySym ksym) {
+	if (ev->state & ControlMask) {
+		switch(ksym) {
+		case XK_c:
+			pinentry->canceled = 1;
+			sel = No;
+			return 1;
+		default:
+			return 1;
+		}
 	}
 
-	if (winmode == WinConfirm) {
-		switch(ksym) {
+	switch(ksym) {
 		case XK_KP_Enter:
 		case XK_Return:
 			if (sel != Nothing) {
@@ -385,12 +384,6 @@ keypress(XKeyEvent *ev) {
 		case XK_N:
 			sel = No;
 			return 1;
-		case XK_c:
-			if (ev->state == ControlMask) {
-				pinentry->canceled = 1;
-				sel = No;
-				return 1;
-			}
 		case XK_Escape:
 			pinentry->canceled = 1;
 			sel = No;
@@ -402,55 +395,87 @@ keypress(XKeyEvent *ev) {
 			sel = Yes;
 			break;
 		}
-	} else {
+
+	return 0;
+}
+
+static int
+keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
+	if (ev->state & ControlMask) {
 		switch(ksym) {
-		case XK_Delete:
-			if (pin[cursor] == '\0') {
-				return 0;
-			}
-			cursor = nextrune(cursor, +1);
-			/* Fallthrough */
-		case XK_BackSpace:
-			if (cursor == 0) {
-				return 0;
-			}
-			insert(NULL, nextrune(cursor, -1) - cursor);
-			break;
 		case XK_c:
-			if (ev->state == ControlMask) {
-				pinentry->canceled = 1;
-				return 1;
-			}
-		case XK_Escape:
 			pinentry->canceled = 1;
 			return 1;
-			//Cleanup();
-			//exit(1);
-			break;
-		case XK_Left:
-			if (cursor > 0) {
-				cursor = nextrune(cursor, -1);
-			}
-			break;
-		case XK_Right:
-			if (pin[cursor] != '\0') {
-				cursor = nextrune(cursor, +1);
-			}
-			break;
-		case XK_Return:
-		case XK_KP_Enter:
-			return 1;
-			break;
 		default:
-			if (!iscntrl(*buf)) {
-				insert(buf, len);
-			}
+			return 1;
 		}
 	}
 
-	drawwin();
+	switch(ksym) {
+	case XK_Delete:
+		if (pin[cursor] == '\0') {
+			return 0;
+		}
+		cursor = nextrune(cursor, +1);
+		/* Fallthrough */
+	case XK_BackSpace:
+		if (cursor == 0) {
+			return 0;
+		}
+		insert(NULL, nextrune(cursor, -1) - cursor);
+		break;
+	case XK_Escape:
+		pinentry->canceled = 1;
+		return 1;
+		//Cleanup();
+		//exit(1);
+		break;
+	case XK_Left:
+		if (cursor > 0) {
+			cursor = nextrune(cursor, -1);
+		}
+		break;
+	case XK_Right:
+		if (pin[cursor] != '\0') {
+			cursor = nextrune(cursor, +1);
+		}
+		break;
+	case XK_Return:
+	case XK_KP_Enter:
+		return 1;
+		break;
+	default:
+		if (!iscntrl(*buf)) {
+			insert(buf, len);
+		}
+	}
 
 	return 0;
+}
+
+static int
+keypress(XKeyEvent *ev) {
+	char buf[32];
+	int len;
+	int ret = 1;
+
+	KeySym ksym = NoSymbol;
+	Status status;
+	len = XmbLookupString(xic, ev, buf, sizeof(buf), &ksym, &status);
+
+	if (status != XBufferOverflow) {
+		if (winmode == WinConfirm) {
+			ret = keypress_confirm(ev, ksym);
+		} else {
+			ret = keypress_pin(ev, ksym, buf, len);
+		}
+
+		if (ret == 0) {
+			drawwin();
+		}
+	}
+
+	return ret;
 }
 
 static void
