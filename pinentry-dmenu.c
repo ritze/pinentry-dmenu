@@ -373,31 +373,31 @@ keypress_confirm(XKeyEvent *ev, KeySym ksym) {
 	}
 
 	switch(ksym) {
-		case XK_KP_Enter:
-		case XK_Return:
-			if (sel != Nothing) {
-				return 1;
-			}
-			break;
-		case XK_y:
-		case XK_Y:
-			sel = Yes;
+	case XK_KP_Enter:
+	case XK_Return:
+		if (sel != Nothing) {
 			return 1;
-		case XK_n:
-		case XK_N:
-			sel = No;
-			return 1;
-		case XK_Escape:
-			pinentry->canceled = 1;
-			sel = No;
-			return 1;
-		case XK_Left:
-			sel = No;
-			break;
-		case XK_Right:
-			sel = Yes;
-			break;
 		}
+		break;
+	case XK_y:
+	case XK_Y:
+		sel = Yes;
+		return 1;
+	case XK_n:
+	case XK_N:
+		sel = No;
+		return 1;
+	case XK_Escape:
+		pinentry->canceled = 1;
+		sel = No;
+		return 1;
+	case XK_Left:
+		sel = No;
+		break;
+	case XK_Right:
+		sel = Yes;
+		break;
+	}
 
 	return 0;
 }
