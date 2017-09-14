@@ -45,7 +45,7 @@ static int promptw, ppromptw, pdescw;
 /* Sum of left and right padding */
 static int lrpad;
 static size_t cursor;
-static int mon = -1, screen;
+static int screen;
 
 static char* pin;
 
@@ -299,7 +299,7 @@ setup(void) {
 		}
 
 		x = info[i].x_org;
-		y = info[i].y_org + (topbar ? 0 : info[i].height - mh);
+		y = info[i].y_org + (bottom ? info[i].height - mh : 0);
 		mw = info[i].width;
 		XFree(info);
 	} else
@@ -309,7 +309,7 @@ setup(void) {
 			die("could not get embedding window attributes: 0x%lx", parentwin);
 		}
 		x = 0;
-		y = topbar ? 0 : wa.height - mh;
+		y = bottom ? wa.height - mh : 0;
 		mw = wa.width;
 	}
 
@@ -658,7 +658,7 @@ main(int argc, char *argv[]) {
 			asterisk = str;
 		}
 		if (config_lookup_bool(&cfg, "buttom", &bval)) {
-			topbar = !bval;
+			bottom = bval;
 		}
 		if (config_lookup_int(&cfg, "min_password_length", &val)) {
 			minpwlen = val;
