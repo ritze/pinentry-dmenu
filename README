@@ -30,6 +30,7 @@ To use pinentry-dmenu add in `~/.gnupg/gpg-agent.conf`:
 The config is located in `~/.gnupg/pinentry-dmenu.conf`.
 
 ^ Parameter           ^ Default           ^ Description ^
+| ------------------- | ----------------- | ----------- |
 | asterisk            | *                 | Defines the symbol which is showed for each typed character |
 | buttom              | false             | pinentry-dmenu appears at the bottom of the screen |
 | min_password_length | 32                | The minimal space of the password field. This value has affect to the description field after the password field |
@@ -40,9 +41,25 @@ The config is located in `~/.gnupg/pinentry-dmenu.conf`.
 | prompt_fg           | #222222           | Defines the prompt foreground color |
 | normal_bg           | #bbbbbb           | Defines the normal background color |
 | normal_fg           | #222222           | Defines the normal foreground color |
-| select_bg           | #eeeeee           | Defines the selected background color|
+| select_bg           | #eeeeee           | Defines the selected background color |
 | select_fg           | #005577           | Defines the selected foreground color |
 | desc_bg             | #bbbbbb           | Defines the description background color |
 | desc_fg             | #222222           | Defines the description foreground color |
 | embedded            | false             | Embed into window |
 
+
+Example
+-------
+```
+asterisk= "# ";
+prompt = "$";
+font = "Noto Sans UI:size=13";
+prompt_fg = "#eeeeee";
+prompt_bg = "#d9904a";
+normal_fg = "#ffffff";
+normal_bg = "#000000";
+select_fg = "#eeeeee";
+select_bg = "#d9904a";
+desc_fg = "#eeeeee";
+desc_bg = "#d9904a";
+```
