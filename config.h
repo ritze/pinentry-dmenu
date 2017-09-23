@@ -1,7 +1,7 @@
 /* See LICENSE file for copyright and license details. */
 /* Default settings; can be overriden by command line. */
 
-static int bottom = 1;
+static int bottom = 0;
 static int embedded = 0;
 static int minpwlen = 32;
 static int mon = -1;
