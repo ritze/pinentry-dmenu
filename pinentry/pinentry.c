@@ -393,9 +393,9 @@ my_strusage( int level )
     {
     case 11: p = this_pgmname; break;
     case 12: p = "pinentry"; break;
-    case 13: p = "*REDACTED*"; break;
+    case 13: p = PACKAGE_VERSION; break;
     case 14: p = "Copyright (C) 2015 g10 Code GmbH"; break;
-    case 19: p = "Please report bugs to <" "*REDACTED*" ">.\n"; break;
+    case 19: p = "Please report bugs to <" PACKAGE_BUGREPORT ">.\n"; break;
     case 1:
     case 40:
       {

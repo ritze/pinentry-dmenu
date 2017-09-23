@@ -1,7 +1,8 @@
-# pinentry-dmenu version
-VERSION = 0.1
+# Pinentry settings
+VERSION           = 0.1
+PACKAGE_BUGREPORT = https://github.com/ritze/pinentry-dmenu
 
-# paths
+# Paths
 PREFIX = /usr/local
 MANPREFIX = ${PREFIX}/share/man
 
@@ -12,20 +13,20 @@ X11LIB = /usr/X11R6/lib
 XINERAMALIBS  = -lXinerama
 XINERAMAFLAGS = -DXINERAMA
 
-# freetype
+# Freetype
 FREETYPELIBS = -lfontconfig -lXft
 FREETYPEINC = /usr/include/freetype2
 # OpenBSD (uncomment)
 #FREETYPEINC = ${X11INC}/freetype2
 
-# includes and libs
+# Includes and libs
 INCS = -I${X11INC} -I${FREETYPEINC}
 LIBS = -L${X11LIB} -lX11 ${XINERAMALIBS} ${FREETYPELIBS}
 
-# flags
-CPPFLAGS = -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}
+# Flags
+CPPFLAGS = -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS} -DPACKAGE_VERSION=\"${VERSION}\" -DPACKAGE_BUGREPORT=\"${PACKAGE_BUGREPORT}\"
 CFLAGS   = -std=c99 -pedantic -Wall -Os ${INCS} ${CPPFLAGS}
 LDFLAGS  = -s ${LIBS}
 
-# compiler and linker
+# Compiler and linker
 CC = cc
