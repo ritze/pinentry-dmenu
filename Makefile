@@ -5,6 +5,7 @@ include config.mk
 
 SRC = pinentry-dmenu.c drw.c util.c
 OBJ = ${SRC:.c=.o}
+OBJ_PIN = pinentry/pinentry.o pinentry/util.o pinentry/password-cache.o pinentry/argparse.o pinentry/secmem.o
 
 all: options pinentry-dmenu
 
@@ -29,7 +30,7 @@ pinentry:
 
 pinentry-dmenu: pinentry pinentry-dmenu.o drw.o util.o
 	@echo CC -o $@
-	@${CC} -o $@ pinentry-dmenu.o drw.o util.o pinentry/pinentry.o pinentry/util.o pinentry/password-cache.o pinentry/argparse.o pinentry/secmem.o ${LDFLAGS} -lassuan -lgpgme -lgpg-error -lconfig
+	@${CC} -o $@ ${OBJ} ${OBJ_PIN} ${LDFLAGS} -lassuan -lgpgme -lgpg-error -lconfig
 
 clean:
 	@echo cleaning
