@@ -125,8 +125,9 @@ nextrune(int cursor, int inc) {
 static void
 insert(const char *str, ssize_t n) {
 	int repeat;
+	size_t len = strlen(pin);
 
-	if (strlen(pin) + n > pinentry->pin_len - 1) {
+	if (len + n > pinentry->pin_len - 1) {
 		repeat = (pin == pinentry->pin) ? 0 : 1;
 
 		if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
@@ -137,12 +138,16 @@ insert(const char *str, ssize_t n) {
 		pin = (repeat) ? pinentry->pin : pinentry->repeat_passphrase;
 	}
 
+	/* Move existing text out of the way, insert new text, and update cursor */
+	memmove(&pin[cursor + n], &pin[cursor],
+	        pinentry->pin_len - cursor - MAX(n, 0));
+
 	if (n > 0) {
 		memcpy(&pin[cursor], str, n);
 	}
 
 	cursor += n;
-	pin[cursor] = '\0';
+	pin[len + n] = '\0';
 }
 
 static void
