@@ -392,13 +392,25 @@ keypress_confirm(XKeyEvent *ev, KeySym ksym) {
 	case XK_N:
 		sel = No;
 		return 1;
+	case XK_g:
+	case XK_G:
 	case XK_Escape:
 		pinentry->canceled = 1;
 		sel = No;
 		return 1;
+	case XK_h:
+	case XK_j:
+	case XK_Home:
 	case XK_Left:
+	case XK_Prior:
+	case XK_Up:
 		sel = No;
 		break;
+	case XK_k:
+	case XK_l:
+	case XK_Down:
+	case XK_End:
+	case XK_Next:
 	case XK_Right:
 		sel = Yes;
 		break;
@@ -409,13 +421,34 @@ keypress_confirm(XKeyEvent *ev, KeySym ksym) {
 
 static int
 keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
+	int old;
+
 	if (ev->state & ControlMask) {
 		switch(ksym) {
+		case XK_a: ksym = XK_Home;      break;
+		case XK_b: ksym = XK_Left;      break;
+		case XK_c: ksym = XK_Escape;    break;
+		case XK_d: ksym = XK_Delete;    break;
+		case XK_e: ksym = XK_End;       break;
+		case XK_f: ksym = XK_Right;     break;
+		case XK_g: ksym = XK_Escape;    break;
+		case XK_h: ksym = XK_BackSpace; break;
+		case XK_k:
+			old = cursor;
+			cursor = strlen(pin);
+			insert(NULL, old - cursor);
+			break;
+		case XK_u:
+			insert(NULL, -cursor);
+			break;
 		case XK_v:
 			XConvertSelection(dpy, (ev->state & ShiftMask) ? clip : XA_PRIMARY,
 			                  utf8, utf8, win, CurrentTime);
 			return 0;
-		case XK_c:
+		case XK_Return:
+		case XK_KP_Enter:
+			break;
+		case XK_bracketleft:
 			pinentry->canceled = 1;
 			return 1;
 		default:
@@ -439,9 +472,6 @@ keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
 	case XK_Escape:
 		pinentry->canceled = 1;
 		return 1;
-		//Cleanup();
-		//exit(1);
-		break;
 	case XK_Left:
 		if (cursor > 0) {
 			cursor = nextrune(cursor, -1);
@@ -451,6 +481,12 @@ keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
 		if (pin[cursor] != '\0') {
 			cursor = nextrune(cursor, +1);
 		}
+		break;
+	case XK_Home:
+		cursor = 0;
+		break;
+	case XK_End:
+		cursor = strlen(pin);
 		break;
 	case XK_Return:
 	case XK_KP_Enter:
