@@ -1,0 +1,211 @@
+.TH PINENTRY-DMENU 1 "DATE" pinentry-dmenu\-VERSION "pinentry-dmenu Manual"
+
+
+.SH NAME
+pinentry-dmenu - a pinentry program with the charm of dmenu
+.SH DESCRIPTION
+.B pinentry-dmenu 
+is a dmenu- and pinentry-based passphrase dialog called from the
+.BR gpg-agent (1)
+daemon. It is not intended to be invoked directly.
+
+
+.SH SYNOPSIS
+Set the 
+.B pinentry-program
+in
+.IR ~/.gnupg/gpg-agent.conf
+to
+.B pinentry-dmenu
+to use the program as the regular dialog for
+.BR gpg-agent .
+.PP
+The configuration is placed in
+.IR ~/.gnupg/pinentry-dmenu.conf .
+
+
+.SH OPTIONS
+.TP
+.BI "asterisk =" " *"
+Defines the symbol which is showed for each typed character.
+.TP
+.BI "buttom =" " false"
+pinentry-dmenu appears at the bottom of the screen.
+.TP
+.BI "min_password_length =" " 32"
+The minimal space of the password field. This value has affect to the description field after the password field.
+.TP
+.BI "monitor =" " -1"
+pinentry-dmenu is displayed on the monitor number supplied. Monitor numbers are starting from 0.
+.TP
+.BI "prompt =" " """"
+Defines the prompt to be displayed to the left of the input field.
+.TP
+.BI "font =" " monospace:size=10"
+Defines the font or font set used.
+.TP
+.BI "prompt_bg =" " #bbbbbb"
+Defines the prompt background color.
+.IR #RGB ,
+.I #RRGGBB
+and X color names are supported.
+.TP
+.BI "prompt_fg =" " #222222"
+Defines the prompt foreground color.
+.TP
+.BI "normal_bg =" " #bbbbbb"
+Defines the normal background color.
+.TP
+.BI "normal_fg =" " #222222"
+Defines the normal foreground color.
+.TP
+.BI "select_bg =" " #eeeeee"
+Defines the selected background color.
+.TP
+.BI "select_fg =" " #005577"
+Defines the selected foreground color.
+.TP
+.BI "desc_bg =" " #bbbbbb"
+Defines the description background color.
+.TP
+.BI "desc_fg =" " #222222"
+Defines the description foreground color.
+.TP
+.BI "embedded =" " false"
+Embed into window.
+
+
+.SH USAGE
+pinentry-dmenu is completely controlled by the keyboard.
+.TP
+.B Return
+Confirm input
+.TP
+.B Ctrl-Return
+Confirm input
+.TP
+.B Shift\-Return
+Confirm input
+.TP
+.B Escape
+Cancel input
+.TP
+.B C\-c
+Escape
+
+.SS Confirm Mode
+.TP
+.B Down
+Right
+.TP
+.B End
+Right
+.TP
+.B Home
+Left
+.TP
+.B Next
+Right
+.TP
+.B Prior
+Left
+.TP
+.B Up
+Left
+.TP
+.B g
+Cancel input
+.TP
+.B G
+Cancel input
+.TP
+.B h
+Left
+.TP
+.B j
+Left
+.TP
+.B k
+Right
+.TP
+.B l
+Right
+.TP
+.B n
+Confirm with no
+.TP
+.B N
+Confirm with no
+.TP
+.B y
+Confirm with yes
+.TP
+.B Y
+Confirm with yes
+
+.SS Pin Mode
+.TP
+.B End
+Move cursor to the line end
+.TP
+.B Home
+Move cursor to the line begin
+.TP
+.B C\-a
+Home
+.TP
+.B C\-b
+Left
+.TP
+.B C\-d
+Delete
+.TP
+.B C\-e
+End
+.TP
+.B C\-f
+Right
+.TP
+.B C\-g
+Escape
+.TP
+.B C\-h
+Backspace
+.TP
+.B C\-k
+Delete line right
+.TP
+.B C\-u
+Delete line left
+.TP
+.B C\-v
+Paste from primary X selection
+
+
+.SH EXAMPLES
+.sp
+.if n \{
+.RS 4
+.\}
+.nf
+asterisk= "# ";
+prompt = "$";
+font = "Noto Sans UI:size=13";
+prompt_fg = "#eeeeee";
+prompt_bg = "#d9904a";
+normal_fg = "#ffffff";
+normal_bg = "#000000";
+select_fg = "#eeeeee";
+select_bg = "#d9904a";
+desc_fg = "#eeeeee";
+desc_bg = "#d9904a";
+
+
+.SH REPORTING BUGS
+Report pinentry-dmenu bugs to <BUGREPORT>
+
+
+.SH SEE ALSO
+.BR dmenu (1),
+.BR dwm (1),
+.BR gpg-agent (1)
