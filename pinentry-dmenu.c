@@ -27,7 +27,7 @@
 
 #define CONFIG "/.gnupg/pinentry-dmenu.conf"
 #define INTERSECT(x, y, w, h, r) \
-		(MAX(0, MIN((x)+(w),(r).x_org+(r).width)  - MAX((x),(r).x_org)) \
+		(MAX(0, MIN((x)+(w),(r).x_org+(r).width) - MAX((x),(r).x_org)) \
 		 && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
 #define LENGTH(X) (sizeof(X) / sizeof(X[0]))
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
@@ -679,8 +679,7 @@ main(int argc, char *argv[]) {
 	char *home = getenv("HOME");
 	config_t cfg;
 
-	// This is a little workaround to get the home dir even if the user used
-	// sudo or logged in as root
+	/* Get the home dir even if the user used sudo or logged in as root */
 	if (sudo_uid) {
 		i = atoi(sudo_uid);
 		pw = getpwuid(i);
