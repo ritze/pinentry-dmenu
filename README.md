@@ -29,23 +29,23 @@ To use pinentry-dmenu add in `~/.gnupg/gpg-agent.conf`:
 
 The config is located in `~/.gnupg/pinentry-dmenu.conf`.
 
-^ Parameter           ^ Default           ^ Description ^
-| ------------------- | ----------------- | ----------- |
-| asterisk            | *                 | Defines the symbol which is showed for each typed character |
-| buttom              | false             | pinentry-dmenu appears at the bottom of the screen |
-| min_password_length | 32                | The minimal space of the password field. This value has affect to the description field after the password field |
-| monitor             | -1                | pinentry-dmenu is displayed on the monitor number supplied. Monitor numbers are starting from 0 |
-| prompt              | ""                | Defines the prompt to be displayed to the left of the input field |
-| font                | monospace:size=10 | Defines the font or font set used |
-| prompt_bg           | #bbbbbb           | Defines the prompt background color |
-| prompt_fg           | #222222           | Defines the prompt foreground color |
-| normal_bg           | #bbbbbb           | Defines the normal background color |
-| normal_fg           | #222222           | Defines the normal foreground color |
-| select_bg           | #eeeeee           | Defines the selected background color |
-| select_fg           | #005577           | Defines the selected foreground color |
-| desc_bg             | #bbbbbb           | Defines the description background color |
-| desc_fg             | #222222           | Defines the description foreground color |
-| embedded            | false             | Embed into window |
+Parameter           | Default           | Description
+:------------------ |:----------------- |:-----------
+asterisk            | *                 | Defines the symbol which is showed for each typed character
+buttom              | false             | pinentry-dmenu appears at the bottom of the screen
+min_password_length | 32                | The minimal space of the password field. This value has affect to the description field after the password field
+monitor             | -1                | pinentry-dmenu is displayed on the monitor number supplied. Monitor numbers are starting from 0
+prompt              | ""                | Defines the prompt to be displayed to the left of the input field
+font                | monospace:size=10 | Defines the font or font set used
+prompt_bg           | #bbbbbb           | Defines the prompt background color
+prompt_fg           | #222222           | Defines the prompt foreground color
+normal_bg           | #bbbbbb           | Defines the normal background color
+normal_fg           | #222222           | Defines the normal foreground color
+select_bg           | #eeeeee           | Defines the selected background color
+select_fg           | #005577           | Defines the selected foreground color
+desc_bg             | #bbbbbb           | Defines the description background color
+desc_fg             | #222222           | Defines the description foreground color
+embedded            | false             | Embed into window
 
 
 Example
