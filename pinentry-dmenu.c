@@ -549,7 +549,6 @@ run(void) {
 
 	while (!XNextEvent(dpy, &ev)) {
 		if (XFilterEvent(&ev, win)) {
-			/* What is this I don't even */
 			continue;
 		}
 		switch(ev.type) {
