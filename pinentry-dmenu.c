@@ -534,7 +534,7 @@ paste(void) {
 	Atom da;
 
 	/* We have been given the current selection, now insert it into input */
-	XGetWindowProperty(dpy, win, utf8, 0, (sizeof(pin) / 4) + 1, False,
+	XGetWindowProperty(dpy, win, utf8, 0, pinentry->pin_len / 4, False,
 	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p);
 	insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t) strlen(p));
 	XFree(p);
