@@ -583,7 +583,7 @@ catchsig(int sig) {
 	}
 }
 
-static int
+static void
 password(void) {
 	winmode = WinPin;
 
@@ -600,27 +600,26 @@ password(void) {
 			return 0;
 		}
 
-		pinentry->repeat_okay = 1;
+	if (pinentry->canceled) {
+		pinentry->result = -1;
+		return;
 	}
 
-	return (pinentry->canceled) ? -1 : 1;
+	pinentry->result = strlen(pinentry->pin);
 }
 
-static int
+static void
 confirm(void) {
 	winmode = WinConfirm;
 	sel = Nothing;
-
 	run();
-	
-	return sel != No;
+	pinentry->result = sel != No;
 }
 
 static int
 cmdhandler(pinentry_t received_pinentry) {
 	struct sigaction sa;
 	XWindowAttributes wa;
-	int ret;
 	
 	pinentry = received_pinentry;
 
@@ -655,14 +654,14 @@ cmdhandler(pinentry_t received_pinentry) {
 	setup();
 
 	if (pinentry->pin) {
-		ret = password();
+		password();
 	} else {
-		ret = confirm();
+		confirm();
 	}
 
 	cleanup();
 
-	return ret;
+	return pinentry->result;
 }
 
 pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
