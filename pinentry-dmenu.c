@@ -41,7 +41,7 @@ enum { Nothing, Yes, No };
 
 static int bh, mw, mh;
 static int sel;
-static int promptw, ppromptw, pdescw;
+static int promptw, pdescw;
 /* Sum of left and right padding */
 static int lrpad;
 static size_t cursor;
@@ -154,6 +154,9 @@ drawwin(void) {
 	size_t pdesclen;
 	int leftinput;
 	char* censort;
+
+	char* pprompt = (repeat) ? pinentry->repeat_passphrase : pinentry->prompt;
+	int ppromptw = (pprompt) ? TEXTW(pprompt) : 0;
 	
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
 	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
@@ -166,9 +169,9 @@ drawwin(void) {
 		x = drw_text(drw, x, 0, promptw, bh, lrpad / 2, prompt, 0);
 	}
 
-	if (pinentry->prompt) {
+	if (pprompt) {
 		drw_setscheme(drw, scheme[SchemePrompt]);
-		drw_text(drw, x, 0, ppromptw, bh, lrpad / 2, pinentry->prompt, 0);
+		drw_text(drw, x, 0, ppromptw, bh, lrpad / 2, pprompt, 0);
 		x += ppromptw;
 	}
 
@@ -236,6 +239,7 @@ setup_pin(char* pin_ptr, int len) {
 	pin = pin_ptr;
 	pin_len = len;
 	cursor = 0;
+	promptw = (prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
 	if (pin) {
 		pin[0] = '\0';
 	}
@@ -317,8 +321,6 @@ setup(void) {
 		mw = wa.width;
 	}
 
-	promptw = (prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
-	ppromptw = (pinentry->prompt) ? TEXTW(pinentry->prompt) : 0;
 	pdescw = (pinentry->description) ? TEXTW(pinentry->description) : 0;
 
 	/* Create menu window */
