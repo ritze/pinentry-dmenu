@@ -48,6 +48,7 @@ static size_t cursor;
 static int screen;
 
 static char* pin;
+static int pin_len;
 
 static Atom clip, utf8;
 static Display *dpy;
@@ -124,23 +125,18 @@ nextrune(int cursor, int inc) {
 
 static void
 insert(const char *str, ssize_t n) {
-	int repeat;
 	size_t len = strlen(pin);
 
-	if (len + n > pinentry->pin_len - 1) {
-		repeat = (pin == pinentry->pin) ? 0 : 1;
-
+	if (len + n > pin_len - 1) {
 		if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
 			printf("Error: Couldn't allocate secure memory\n");
 			return;
 		}
-
-		pin = (repeat) ? pinentry->pin : pinentry->repeat_passphrase;
+		pin_len = pinentry->pin_len;
 	}
 
 	/* Move existing text out of the way, insert new text, and update cursor */
-	memmove(&pin[cursor + n], &pin[cursor],
-	        pinentry->pin_len - cursor - MAX(n, 0));
+	memmove(&pin[cursor + n], &pin[cursor], pin_len - cursor - MAX(n, 0));
 
 	if (n > 0) {
 		memcpy(&pin[cursor], str, n);
@@ -209,7 +205,7 @@ drawwin(void) {
 	drw_setscheme(drw, scheme[SchemeNormal]);
 
 	if (winmode == WinPin) {
-		censort = ecalloc(1, asterlen * pinentry->pin_len);
+		censort = ecalloc(1, asterlen * pin_len);
 
 		for (i = 0; i < asterlen * strlen(pin); i += asterlen) {
 			memcpy(&censort[i], asterisk, asterlen);
@@ -236,10 +232,13 @@ drawwin(void) {
 }
 
 static void
-setup_pin(char* pinlink) {
-	pin = pinlink;
-	pin[0] = '\0';
+setup_pin(char* pin_ptr, int len) {
+	pin = pin_ptr;
+	pin_len = len;
 	cursor = 0;
+	if (pin) {
+		pin[0] = '\0';
+	}
 }
 
 static void
@@ -534,8 +533,8 @@ paste(void) {
 	Atom da;
 
 	/* We have been given the current selection, now insert it into input */
-	XGetWindowProperty(dpy, win, utf8, 0, pinentry->pin_len / 4, False,
-	                   utf8, &da, &di, &dl, &dl, (unsigned char **)&p);
+	XGetWindowProperty(dpy, win, utf8, 0, pin_len / 4, False, utf8, &da, &di,
+	                   &dl, &dl, (unsigned char **)&p);
 	insert(p, (q = strchr(p, '\n')) ? q - p : (ssize_t) strlen(p));
 	XFree(p);
 	drawwin();
@@ -586,8 +585,7 @@ catchsig(int sig) {
 static void
 password(void) {
 	winmode = WinPin;
-
-	setup_pin(pinentry->pin);
+	setup_pin(pinentry->pin, pinentry->pin_len);
 	run();
 
 	if (pinentry->repeat_passphrase) {
