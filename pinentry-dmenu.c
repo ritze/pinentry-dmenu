@@ -49,6 +49,9 @@ static int screen;
 
 static char* pin;
 static int pin_len;
+static char* pin_repeat;
+static int pin_repeat_len;
+static int repeat;
 
 static Atom clip, utf8;
 static Display *dpy;
@@ -124,15 +127,45 @@ nextrune(int cursor, int inc) {
 }
 
 static void
+setup_pin(char* pin_ptr, int len, int reset) {
+	pin = pin_ptr;
+	pin_len = len;
+
+	if (reset) {
+		promptw = (prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
+		cursor = 0;
+
+		if (pin) {
+			pin[0] = '\0';
+		}
+	}
+}
+
+static void
 insert(const char *str, ssize_t n) {
 	size_t len = strlen(pin);
 
+	// FIXME: Pinentry crashes when increasing the pin buffer the second time.
+	//        Other pinentry programs has a limited passwort field length.
 	if (len + n > pin_len - 1) {
-		if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
+		if (repeat) {
+			pin_repeat_len = 2 * pin_repeat_len;
+			pin_repeat = secmem_realloc(pin_repeat, pin_repeat_len);
+			setup_pin(pin_repeat, pin_repeat_len, 0);
+			if (!pin_repeat) {
+				pin_len = 0;
+			}
+		} else {
+			if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
+				pin_len = 0;
+			} else {
+				setup_pin(pinentry->pin, pinentry->pin_len, 0);
+			}
+		}
+		if (pin_len == 0) {
 			printf("Error: Couldn't allocate secure memory\n");
 			return;
 		}
-		pin_len = pinentry->pin_len;
 	}
 
 	/* Move existing text out of the way, insert new text, and update cursor */
@@ -232,17 +265,6 @@ drawwin(void) {
 	}
 
 	drw_map(drw, win, 0, 0, mw, mh);
-}
-
-static void
-setup_pin(char* pin_ptr, int len) {
-	pin = pin_ptr;
-	pin_len = len;
-	cursor = 0;
-	promptw = (prompt) ? TEXTW(prompt) - lrpad / 4 : 0;
-	if (pin) {
-		pin[0] = '\0';
-	}
 }
 
 static void
@@ -587,18 +609,25 @@ catchsig(int sig) {
 static void
 password(void) {
 	winmode = WinPin;
-	setup_pin(pinentry->pin, pinentry->pin_len);
+	repeat = 0;
+	setup_pin(pinentry->pin, pinentry->pin_len, 1);
 	run();
 
-	if (pinentry->repeat_passphrase) {
-		setup_pin(pinentry->repeat_passphrase);
-		// TODO: Add repeat text
+	if (!pinentry->canceled && pinentry->repeat_passphrase) {
+		repeat = 1;
+		pin_repeat_len = pinentry->pin_len;
+		pin_repeat = secmem_malloc(pinentry->pin_len);
+		setup_pin(pin_repeat, pin_repeat_len, 1);
 		run();
 
-		if (strcmp(pinentry->pin, pinentry->repeat_passphrase)) {
-			pinentry->repeat_okay = 0;
-			return 0;
+		pinentry->repeat_okay = (strcmp(pinentry->pin, pin_repeat) == 0)? 1 : 0;
+		secmem_free(pin_repeat);
+
+		if (!pinentry->repeat_okay) {
+			pinentry->result = -1;
+			return;
 		}
+	}
 
 	if (pinentry->canceled) {
 		pinentry->result = -1;
@@ -654,7 +683,10 @@ cmdhandler(pinentry_t received_pinentry) {
 	setup();
 
 	if (pinentry->pin) {
-		password();
+		do {
+			password();
+		} while (!pinentry->canceled && pinentry->repeat_passphrase
+		                             && !pinentry->repeat_okay);
 	} else {
 		confirm();
 	}

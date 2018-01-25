@@ -1,9 +1,43 @@
 #!/bin/sh
-echo "SETDESC testing pinentry-dmenu, type whatever
-SETPROMPT whatever:
+
+if [[ $1 -eq 1 ]]; then
+
+echo "SETTITLE title
+SETPROMPT prompt
+SETDESC PROMPT
 GETPIN
-SETDESC type more of whatever:
-GETPIN
-SETDESC testing confirmation
+BYE" | ./pinentry-dmenu
+
+elif [[ $1 -eq 2 ]]; then
+
+echo "SETTITLE title
+SETPROMPT confirm
+SETDESC CONFIRM
 confirm
 BYE" | ./pinentry-dmenu
+
+elif [[ $1 -eq 3 ]]; then
+
+echo "SETTITLE title
+SETPROMPT prompt
+SETDESC REPEAT
+SETREPEAT repeat
+GETPIN
+BYE" | ./pinentry-dmenu
+
+else
+
+echo "SETTITLE title
+SETPROMPT prompt
+SETDESC PROMPT
+GETPIN
+SETPROMPT confirm
+SETDESC CONFIRM
+confirm
+SETPROMPT repeat
+SETDESC REPEAT
+SETREPEAT
+GETPIN
+BYE" | ./pinentry-dmenu
+
+fi
