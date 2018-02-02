@@ -25,7 +25,8 @@
 #include "pinentry/pinentry.h"
 #include "pinentry/memory.h"
 
-#define CONFIG "/.gnupg/pinentry-dmenu.conf"
+#define CONFIG_DIR "/.gnupg"
+#define CONFIG_FILE "/pinentry-dmenu.conf"
 #define INTERSECT(x, y, w, h, r) \
 		(MAX(0, MIN((x)+(w),(r).x_org+(r).width) - MAX((x),(r).x_org)) \
 		 && MAX(0, MIN((y)+(h),(r).y_org+(r).height) - MAX((y),(r).y_org)))
@@ -707,20 +708,30 @@ main(int argc, char *argv[]) {
 	char path[PATH_MAX];
 	char *sudo_uid = getenv("SUDO_UID");
 	char *home = getenv("HOME");
+	char *gnupghome = getenv("GNUPGHOME");
 	config_t cfg;
 
-	/* Get the home dir even if the user used sudo or logged in as root */
-	if (sudo_uid) {
-		i = atoi(sudo_uid);
-		pw = getpwuid(i);
-		home = pw->pw_dir;
+	if (gnupghome) {
+		i = strlen(gnupghome);
+		strcpy(path, gnupghome);
+	} else {
+		/* Get the home dir even if the user used sudo or logged in as root */
+		if (sudo_uid) {
+			i = atoi(sudo_uid);
+			pw = getpwuid(i);
+			home = pw->pw_dir;
+		}
+
+		i = strlen(home);
+		strcpy(path, home);
+		strcpy(&path[i], CONFIG_DIR);
+		i += strlen(CONFIG_DIR);
 	}
 
-	config_init(&cfg);
-	i = strlen(home);
-	strcpy(path, home);
-	strcpy(&path[i], CONFIG);
+	strcpy(&path[i], CONFIG_FILE);
 	endpwent();
+
+	config_init(&cfg);
 
 	/* Read the file. If there is an error, report it and exit. */
 	if (config_read_file(&cfg, path)) {
