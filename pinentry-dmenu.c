@@ -738,7 +738,7 @@ main(int argc, char *argv[]) {
 		if (config_lookup_string(&cfg, "asterisk", &str)) {
 			asterisk = str;
 		}
-		if (config_lookup_bool(&cfg, "buttom", &bval)) {
+		if (config_lookup_bool(&cfg, "bottom", &bval)) {
 			bottom = bval;
 		}
 		if (config_lookup_int(&cfg, "min_password_length", &val)) {
