@@ -32,7 +32,7 @@ The config is located in `~/.gnupg/pinentry-dmenu.conf`.
 Parameter           | Default           | Description
 :------------------ |:----------------- |:-----------
 asterisk            | *                 | Defines the symbol which is showed for each typed character
-buttom              | false             | pinentry-dmenu appears at the bottom of the screen
+bottom              | false             | pinentry-dmenu appears at the bottom of the screen
 min_password_length | 32                | The minimal space of the password field. This value has affect to the description field after the password field
 monitor             | -1                | pinentry-dmenu is displayed on the monitor number supplied. Monitor numbers are starting from 0
 prompt              | ""                | Defines the prompt to be displayed to the left of the input field
