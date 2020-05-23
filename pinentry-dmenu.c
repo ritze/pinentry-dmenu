@@ -64,7 +64,7 @@ static Clr *scheme[SchemeLast];
 
 static int timed_out;
 static int winmode;
-pinentry_t pinentry;
+pinentry_t pinentry_info;
 
 #include "config.h"
 
@@ -157,10 +157,10 @@ insert(const char *str, ssize_t n) {
 				pin_len = 0;
 			}
 		} else {
-			if (!pinentry_setbufferlen(pinentry, 2 * pinentry->pin_len)) {
+			if (!pinentry_setbufferlen(pinentry_info, 2 * pinentry_info->pin_len)) {
 				pin_len = 0;
 			} else {
-				setup_pin(pinentry->pin, pinentry->pin_len, 0);
+				setup_pin(pinentry_info->pin, pinentry_info->pin_len, 0);
 			}
 		}
 		if (pin_len == 0) {
@@ -189,7 +189,7 @@ drawwin(void) {
 	int leftinput;
 	char* censort;
 
-	char* pprompt = (repeat) ? pinentry->repeat_passphrase : pinentry->prompt;
+	char* pprompt = (repeat) ? pinentry_info->repeat_passphrase : pinentry_info->prompt;
 	int ppromptw = (pprompt) ? TEXTW(pprompt) : 0;
 
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
@@ -209,9 +209,9 @@ drawwin(void) {
 		x += ppromptw;
 	}
 
-	if (pinentry->description) {
+	if (pinentry_info->description) {
 		pb = mw - x;
-		pdesclen = strlen(pinentry->description);
+		pdesclen = strlen(pinentry_info->description);
 
 		if (pb > 0) {
 			pb -= (winmode == WinPin) ? censortl : confirml;
@@ -224,13 +224,13 @@ drawwin(void) {
 				pb = mw - pbw;
 
 				for (i = 0; i < pdesclen; i++) {
-					if (pinentry->description[i] == '\n') {
-						pinentry->description[i] = ' ';
+					if (pinentry_info->description[i] == '\n') {
+						pinentry_info->description[i] = ' ';
 					}
 				}
 
 				drw_setscheme(drw, scheme[SchemeDesc]);
-				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, pinentry->description,
+				drw_text(drw, pb, 0, pbw, bh, lrpad / 2, pinentry_info->description,
 				         0);
 			} else {
 				pbw = 0;
@@ -344,7 +344,7 @@ setup(void) {
 		mw = wa.width;
 	}
 
-	pdescw = (pinentry->description) ? TEXTW(pinentry->description) : 0;
+	pdescw = (pinentry_info->description) ? TEXTW(pinentry_info->description) : 0;
 
 	/* Create menu window */
 	swa.override_redirect = True;
@@ -393,7 +393,7 @@ keypress_confirm(XKeyEvent *ev, KeySym ksym) {
 	if (ev->state & ControlMask) {
 		switch(ksym) {
 		case XK_c:
-			pinentry->canceled = 1;
+			pinentry_info->canceled = 1;
 			sel = No;
 			return 1;
 		default:
@@ -419,7 +419,7 @@ keypress_confirm(XKeyEvent *ev, KeySym ksym) {
 	case XK_g:
 	case XK_G:
 	case XK_Escape:
-		pinentry->canceled = 1;
+		pinentry_info->canceled = 1;
 		sel = No;
 		return 1;
 	case XK_h:
@@ -473,7 +473,7 @@ keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
 		case XK_KP_Enter:
 			break;
 		case XK_bracketleft:
-			pinentry->canceled = 1;
+			pinentry_info->canceled = 1;
 			return 1;
 		default:
 			return 1;
@@ -494,7 +494,7 @@ keypress_pin(XKeyEvent *ev, KeySym ksym, char* buf, int len) {
 		insert(NULL, nextrune(cursor, -1) - cursor);
 		break;
 	case XK_Escape:
-		pinentry->canceled = 1;
+		pinentry_info->canceled = 1;
 		return 1;
 	case XK_Left:
 		if (cursor > 0) {
@@ -611,31 +611,31 @@ static void
 password(void) {
 	winmode = WinPin;
 	repeat = 0;
-	setup_pin(pinentry->pin, pinentry->pin_len, 1);
+	setup_pin(pinentry_info->pin, pinentry_info->pin_len, 1);
 	run();
 
-	if (!pinentry->canceled && pinentry->repeat_passphrase) {
+	if (!pinentry_info->canceled && pinentry_info->repeat_passphrase) {
 		repeat = 1;
-		pin_repeat_len = pinentry->pin_len;
-		pin_repeat = secmem_malloc(pinentry->pin_len);
+		pin_repeat_len = pinentry_info->pin_len;
+		pin_repeat = secmem_malloc(pinentry_info->pin_len);
 		setup_pin(pin_repeat, pin_repeat_len, 1);
 		run();
 
-		pinentry->repeat_okay = (strcmp(pinentry->pin, pin_repeat) == 0)? 1 : 0;
+		pinentry_info->repeat_okay = (strcmp(pinentry_info->pin, pin_repeat) == 0)? 1 : 0;
 		secmem_free(pin_repeat);
 
-		if (!pinentry->repeat_okay) {
-			pinentry->result = -1;
+		if (!pinentry_info->repeat_okay) {
+			pinentry_info->result = -1;
 			return;
 		}
 	}
 
-	if (pinentry->canceled) {
-		pinentry->result = -1;
+	if (pinentry_info->canceled) {
+		pinentry_info->result = -1;
 		return;
 	}
 
-	pinentry->result = strlen(pinentry->pin);
+	pinentry_info->result = strlen(pinentry_info->pin);
 }
 
 static void
@@ -643,7 +643,7 @@ confirm(void) {
 	winmode = WinConfirm;
 	sel = Nothing;
 	run();
-	pinentry->result = sel != No;
+	pinentry_info->result = sel != No;
 }
 
 static int
@@ -651,18 +651,18 @@ cmdhandler(pinentry_t received_pinentry) {
 	struct sigaction sa;
 	XWindowAttributes wa;
 
-	pinentry = received_pinentry;
+	pinentry_info = received_pinentry;
 
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale()) {
 		fputs("warning: no locale support\n", stderr);
 	}
-	if (!(dpy = XOpenDisplay(pinentry->display))) {
+	if (!(dpy = XOpenDisplay(pinentry_info->display))) {
 		die("cannot open display");
 	}
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	embedded = (pinentry->parent_wid) ? embedded : 0;
-	parentwin = (embedded) ? pinentry->parent_wid : root;
+	embedded = (pinentry_info->parent_wid) ? embedded : 0;
+	parentwin = (embedded) ? pinentry_info->parent_wid : root;
 	if (!XGetWindowAttributes(dpy, parentwin, &wa)) {
 		die("could not get embedding window attributes: 0x%lx", parentwin);
 	}
@@ -673,28 +673,28 @@ cmdhandler(pinentry_t received_pinentry) {
 	lrpad = drw->fonts->h;
 	drw_setscheme(drw, scheme[SchemePrompt]);
 
-	if (pinentry->timeout) {
+	if (pinentry_info->timeout) {
 		memset(&sa, 0, sizeof(sa));
 		sa.sa_handler = catchsig;
 		sigaction(SIGALRM, &sa, NULL);
-		alarm(pinentry->timeout);
+		alarm(pinentry_info->timeout);
 	}
 
 	grabkeyboard();
 	setup();
 
-	if (pinentry->pin) {
+	if (pinentry_info->pin) {
 		do {
 			password();
-		} while (!pinentry->canceled && pinentry->repeat_passphrase
-		                             && !pinentry->repeat_okay);
+		} while (!pinentry_info->canceled && pinentry_info->repeat_passphrase
+		                             && !pinentry_info->repeat_okay);
 	} else {
 		confirm();
 	}
 
 	cleanup();
 
-	return pinentry->result;
+	return pinentry_info->result;
 }
 
 pinentry_cmd_handler_t pinentry_cmd_handler = cmdhandler;
