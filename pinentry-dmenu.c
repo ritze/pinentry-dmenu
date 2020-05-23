@@ -123,7 +123,7 @@ nextrune(int cursor, int inc) {
 	for (n = cursor + inc;
 	     n + inc >= 0 && (pin[n] & 0xc0) == 0x80;
 	     n += inc);
-	
+
 	return n;
 }
 
@@ -191,7 +191,7 @@ drawwin(void) {
 
 	char* pprompt = (repeat) ? pinentry->repeat_passphrase : pinentry->prompt;
 	int ppromptw = (pprompt) ? TEXTW(pprompt) : 0;
-	
+
 	unsigned int censortl = minpwlen * TEXTW(asterisk) / strlen(asterisk);
 	unsigned int confirml = TEXTW(" YesNo ") + 3 * lrpad;
 
@@ -212,7 +212,7 @@ drawwin(void) {
 	if (pinentry->description) {
 		pb = mw - x;
 		pdesclen = strlen(pinentry->description);
-		
+
 		if (pb > 0) {
 			pb -= (winmode == WinPin) ? censortl : confirml;
 			pbw = MINDESCLEN * pdescw / pdesclen;
@@ -312,7 +312,7 @@ setup(void) {
 			if (XGetWindowAttributes(dpy, pw, &wa)) {
 				for (j = 0; j < n; j++) {
 					a = INTERSECT(wa.x, wa.y, wa.width, wa.height, info[j]);
-					if (a > area) { 
+					if (a > area) {
 						area = a;
 						i = j;
 					}
@@ -650,7 +650,7 @@ static int
 cmdhandler(pinentry_t received_pinentry) {
 	struct sigaction sa;
 	XWindowAttributes wa;
-	
+
 	pinentry = received_pinentry;
 
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale()) {
@@ -790,12 +790,12 @@ main(int argc, char *argv[]) {
 
 	pinentry_init("pinentry-dmenu");
 	pinentry_parse_opts(argc, argv);
-	
+
 	if (pinentry_loop()) {
 		return 1;
 	}
 
 	config_destroy(&cfg);
-	
+
 	return 0;
 }
